@@ -1,4 +1,5 @@
 {
+  "homepage": "https://FagAIproj.github.io/fagai",
   "name": "fagai",
   "private": true,
   "version": "0.1.0",
@@ -10,7 +11,11 @@
   },
   "dependencies": {
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+  },
+  "scripts":{
+    "predeploy": "npm run build"
+    "deploy": "gh-pages -d build"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.1",
