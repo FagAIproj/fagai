@@ -54,7 +54,8 @@ const THEMES = {
   },
 };
 
-const SYSTEM_PROMPT = `Du er FagAI – en venlig og klog læringsassistent for danske skoleelever. Dit mål er at hjælpe elever med at LÆRE selv – ikke at lave opgaverne for dem.
+const SYSTEM_PROMPT = `Du er FagAI – en venlig og klog læringsassistent for danske skoleelever. 
+Dit mål er at hjælpe elever med at LÆRE selv – ikke at lave opgaverne for dem.
 
 REGLER:
 1. Skriv ALDRIG en hel stil, opgave, rapport eller aflevering for eleven.
