@@ -6,7 +6,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>FagAI – Din Læringsassistent</title>
     <meta name="description" content="FagAI hjælper skoleelever med at lære smartere og mere effektivt." />
-    <script type="module" crossorigin src="/fagai/assets/index-S5O8G5z8.js"></script>
+    <script>
+      // Håndter redirect fra 404.html (GitHub Pages SPA fix)
+      const redirect = sessionStorage.getItem('redirect');
+      if (redirect) {
+        sessionStorage.removeItem('redirect');
+        // Brug replaceState så back-knappen virker korrekt
+        window.history.replaceState(null, '', '/fagai' + redirect);
+      }
+    </script>
+    <script type="module" crossorigin src="/fagai/assets/index-CddhWnU0.js"></script>
   </head>
   <body>
     <div id="root"></div>
