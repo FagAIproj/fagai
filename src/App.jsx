@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "./useAuth.jsx";
 import { useNotes } from "./useNotes.jsx";
+import { useConversations, groupByDate } from "./useConversations.jsx";
 import AuthModal from "./AuthModal.jsx";
 
 // ─── THEMES ──────────────────────────────────────────────────────────────────
@@ -82,15 +83,6 @@ const SUBJECTS = [
   { id:"social",  label:"Samfundsfag",   icon:"⚖",   accent:"#6a1b9a" },
 ];
 
-
-const QUICK_STARTERS = [
-  { label:"Forklar fotosyntese trin for trin",    subject:"science" },
-  { label:"Hvad er en andengradsligning?",        subject:"math"    },
-  { label:"Idéer til min opgave om klimaet",      subject:"danish"  },
-  { label:"Hvad er forskellen på class og def?",  subject:"coding"  },
-  { label:"Forklar årsagerne til 1. verdenskrig", subject:"history" },
-  { label:"Hvad betyder BNP?",                   subject:"social"  },
-];
 
 const sub = (id) => SUBJECTS.find(s => s.id === id) || SUBJECTS[0];
 
@@ -323,19 +315,16 @@ export default function FagAI() {
   const [authTab, setAuthTab]             = useState("login");
 
   const apiKey = import.meta.env.VITE_OPENAI_API_KEY || "";
-  const [view, setView]                   = useState("chat");
+  const [view, setView]               = useState("chat");
   const [activeSubject, setActiveSubject] = useState(null);
-  const [messages, setMessages]           = useState([
-    { role:"assistant", content:"Hej! 👋 Jeg er **FagAI** – din personlige læringsassistent.\n\nJeg kan hjælpe dig med at forstå fag, organisere noter og komme med idéer til opgaver.\n\n**Hvad vil du lære om i dag?**" }
-  ]);
-  const [input, setInput]                 = useState("");
-  const [loading, setLoading]             = useState(false);
-  const [activeNote, setActiveNote]       = useState(null);
-  const [editingNote, setEditingNote]     = useState(null);
-  const [noteSearch, setNoteSearch]       = useState("");
-  const [showNewNote, setShowNewNote]     = useState(false);
-  const [newNote, setNewNote]             = useState({ title:"", subject:"math", content:"" });
-  const [sidebarOpen, setSidebarOpen]     = useState(true);
+  const [input, setInput]             = useState("");
+  const [loading, setLoading]         = useState(false);
+  const [activeNote, setActiveNote]   = useState(null);
+  const [editingNote, setEditingNote] = useState(null);
+  const [noteSearch, setNoteSearch]   = useState("");
+  const [showNewNote, setShowNewNote] = useState(false);
+  const [newNote, setNewNote]         = useState({ title:"", subject:"math", content:"" });
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const endRef       = useRef(null);
   const textareaRef  = useRef(null);
   const editorRef    = useRef(null);
@@ -351,6 +340,26 @@ export default function FagAI() {
     deleteNote,
   } = useNotes(user?.id);
 
+  // ── Supabase chat history ───────────────────────────────────────────────────
+  const {
+    conversations,
+    activeId:    activeConvId,
+    messages,
+    loadingConvs,
+    loadingMsgs,
+    selectConversation,
+    createConversation,
+    saveMessage,
+    maybeSetTitle,
+    deleteConversation,
+    setMessages,
+  } = useConversations(user?.id);
+
+  // Welcome message when no conversation is active
+  const displayMessages = messages.length > 0 ? messages : [
+    { role:"assistant", content:"Hej! 👋 Jeg er **FagAI** – din personlige læringsassistent.\n\nVælg en tidligere samtale i sidepanelet, eller stil mig et spørgsmål for at starte en ny.\n\n**Hvad vil du lære om i dag?**" }
+  ];
+
   useEffect(() => { endRef.current?.scrollIntoView({ behavior:"smooth" }); }, [messages, loading]);
 
   useEffect(() => {
@@ -361,7 +370,6 @@ export default function FagAI() {
     }
   }, [editingNote, activeNote?.id]);
 
-  // Keep activeNote in sync when notes array updates (e.g. after autosave)
   useEffect(() => {
     if (activeNote) {
       const updated = notes.find(n => n.id === activeNote.id);
@@ -372,11 +380,30 @@ export default function FagAI() {
   const sendMessage = async (text) => {
     const t = (text || input).trim();
     if (!t || loading) return;
-    if (!apiKey) { alert("Indsæt din OpenAI API-nøgle."); return; }
     setInput("");
     if (textareaRef.current) textareaRef.current.style.height = "44px";
-    const msgs = [...messages, { role:"user", content:t }];
-    setMessages(msgs); setLoading(true);
+
+    // Ensure we have an active conversation — create one if needed
+    let convId = activeConvId;
+    if (!convId) {
+      convId = await createConversation();
+      if (!convId) return;
+    }
+
+    // Check if this is the first real user message (for auto-title)
+    const isFirstMessage = messages.length === 0;
+
+    const userMsg = { role:"user", content:t };
+    const updatedMsgs = [...messages, userMsg];
+    setMessages(updatedMsgs);
+    setLoading(true);
+
+    // Save user message to Supabase
+    await saveMessage(convId, "user", t);
+
+    // Auto-title from first message
+    if (isFirstMessage) await maybeSetTitle(convId, t);
+
     try {
       const res = await fetch("https://api.openai.com/v1/chat/completions", {
         method:"POST",
@@ -385,15 +412,27 @@ export default function FagAI() {
           model:"gpt-4o-mini", max_tokens:1000,
           messages:[
             { role:"system", content: SYSTEM_PROMPT + (activeSubject ? `\n\nEleven fokuserer på: ${sub(activeSubject).label}.`:"") },
-            ...msgs.map(m => ({ role:m.role, content:m.content }))
+            ...updatedMsgs.map(m => ({ role:m.role, content:m.content }))
           ]
         })
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error.message);
-      setMessages([...msgs, { role:"assistant", content: data.choices?.[0]?.message?.content || "Noget gik galt." }]);
-    } catch(e) { setMessages([...msgs, { role:"assistant", content:`❌ **Fejl:** ${e.message}` }]); }
+      const reply = data.choices?.[0]?.message?.content || "Noget gik galt.";
+      const finalMsgs = [...updatedMsgs, { role:"assistant", content:reply }];
+      setMessages(finalMsgs);
+      // Save AI reply to Supabase
+      await saveMessage(convId, "assistant", reply);
+    } catch(e) {
+      const errMsg = `❌ **Fejl:** ${e.message}`;
+      setMessages([...updatedMsgs, { role:"assistant", content:errMsg }]);
+    }
     setLoading(false);
+  };
+
+  const startNewChat = async () => {
+    setMessages([]);
+    await createConversation();
   };
 
   const handleKey = (e) => { if (e.key==="Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } };
@@ -418,13 +457,11 @@ export default function FagAI() {
   const commitEditedNote = () => {
     if (!activeNote || !editorRef.current) return;
     const html = editorRef.current.innerHTML;
-    // Trigger debounced save — will hit Supabase after 2.5 s
     debouncedUpdate(activeNote.id, { content: html });
     setActiveNote(prev => prev ? { ...prev, content: html } : prev);
     setEditingNote(null);
   };
 
-  // Called on every keystroke in the editor — debounced, no spam
   const handleEditorChange = () => {
     if (!activeNote || !editorRef.current) return;
     const html = editorRef.current.innerHTML;
@@ -561,34 +598,86 @@ export default function FagAI() {
         {/* ══════════════ CHAT ══════════════ */}
         {view==="chat" && (
           <div style={{ display:"flex", flex:1, overflow:"hidden" }}>
-            {/* Sidebar */}
+            {/* ── Sidebar: Conversation History ── */}
             {sidebarOpen && (
-              <div style={{ width:246, minWidth:246, background:T.burgundyMid, borderRight:`2.5px solid ${T.creamBorder}55`, display:"flex", flexDirection:"column", overflow:"hidden", boxShadow:`3px 0 14px ${T.shadowDeep}` }}>
-                <div style={{ flex:1, overflowY:"auto", padding:"18px 12px 10px" }}>
-                  <div style={{ fontSize:9.5, fontWeight:700, color:`${T.gold}75`, letterSpacing:"1.3px", textTransform:"uppercase", marginBottom:10, paddingLeft:8, fontFamily:"'DM Sans',sans-serif" }}>Fag-fokus</div>
-                  {SUBJECTS.map(s => {
-                    const active = activeSubject === s.id;
-                    return (
-                      <button key={s.id} className="sbchip" onClick={()=>setActiveSubject(active?null:s.id)}
-                        style={{ display:"flex", alignItems:"center", gap:10, width:"100%", padding:"9px 12px", borderRadius:10, marginBottom:4, background:active?`${T.gold}25`:`rgba(255,255,255,0.04)`, color:active?T.gold:`${T.gold}80`, fontWeight:active?700:400, fontSize:13.5, border:active?`2px solid ${T.gold}70`:`2px solid rgba(255,255,255,0.12)`, boxShadow:active?`inset 0 1px 0 rgba(255,255,255,0.1), 0 2px 8px ${T.shadowDeep}`:"none" }}>
-                        <span style={{ width:24, height:24, borderRadius:7, background:active?`${T.gold}30`:`rgba(255,255,255,0.08)`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, flexShrink:0, border:active?`1px solid ${T.gold}50`:`1px solid rgba(255,255,255,0.1)` }}>{s.icon}</span>
-                        {s.label}
-                      </button>
-                    );
-                  })}
-                  <div style={{ height:1, background:`${T.gold}20`, margin:"14px 6px" }}/>
-                  <div style={{ fontSize:9.5, fontWeight:700, color:`${T.gold}75`, letterSpacing:"1.3px", textTransform:"uppercase", marginBottom:10, paddingLeft:8, fontFamily:"'DM Sans',sans-serif" }}>Hurtig start</div>
-                  {QUICK_STARTERS.map((q,i) => (
-                    <button key={i} className="sbchip" onClick={()=>sendMessage(q.label)}
-                      style={{ display:"block", width:"100%", padding:"8px 12px", borderRadius:10, marginBottom:3, fontSize:12.5, background:"transparent", color:`${T.gold}70`, lineHeight:1.45, border:`1.5px solid transparent`, textAlign:"left" }}
-                      onMouseEnter={e=>{ e.currentTarget.style.background=`rgba(255,255,255,0.06)`; e.currentTarget.style.borderColor=`rgba(255,255,255,0.12)`; e.currentTarget.style.color=T.gold; }}
-                      onMouseLeave={e=>{ e.currentTarget.style.background="transparent"; e.currentTarget.style.borderColor="transparent"; e.currentTarget.style.color=`${T.gold}70`; }}>
-                      › {q.label}
-                    </button>
+              <div style={{ width:260, minWidth:260, background:T.burgundyMid, borderRight:`2.5px solid ${T.creamBorder}55`, display:"flex", flexDirection:"column", overflow:"hidden", boxShadow:`3px 0 14px ${T.shadowDeep}` }}>
+
+                {/* New Chat button */}
+                <div style={{ padding:"14px 12px 10px", borderBottom:`1px solid ${T.gold}15`, flexShrink:0 }}>
+                  <button
+                    onClick={startNewChat}
+                    style={{ display:"flex", alignItems:"center", gap:9, width:"100%", padding:"10px 14px", borderRadius:11, background:`${T.gold}18`, border:`1.5px solid ${T.gold}40`, color:T.gold, fontSize:13.5, fontWeight:700, cursor:"pointer", fontFamily:"'DM Sans',sans-serif", transition:"all 0.15s" }}
+                    onMouseEnter={e=>{ e.currentTarget.style.background=`${T.gold}30`; }}
+                    onMouseLeave={e=>{ e.currentTarget.style.background=`${T.gold}18`; }}>
+                    <span style={{ fontSize:18, lineHeight:1 }}>✏️</span>
+                    Ny samtale
+                  </button>
+                </div>
+
+                {/* Conversation list */}
+                <div style={{ flex:1, overflowY:"auto", padding:"10px 8px" }}>
+                  {loadingConvs && (
+                    <div style={{ textAlign:"center", color:`${T.gold}50`, fontSize:12, padding:"24px 0", fontFamily:"'DM Sans',sans-serif" }}>Indlæser…</div>
+                  )}
+                  {!loadingConvs && conversations.length === 0 && (
+                    <div style={{ textAlign:"center", color:`${T.gold}45`, fontSize:12, padding:"28px 12px", lineHeight:1.6, fontFamily:"'DM Sans',sans-serif" }}>
+                      Ingen samtaler endnu.<br/>Start ved at stille et spørgsmål.
+                    </div>
+                  )}
+                  {!loadingConvs && Object.entries(groupByDate(conversations)).map(([label, convs]) => (
+                    <div key={label}>
+                      {/* Date group label */}
+                      <div style={{ fontSize:10, fontWeight:700, color:`${T.gold}55`, letterSpacing:"0.9px", textTransform:"uppercase", padding:"10px 8px 5px", fontFamily:"'DM Sans',sans-serif" }}>
+                        {label}
+                      </div>
+                      {convs.map(conv => {
+                        const isActive = conv.id === activeConvId;
+                        return (
+                          <div key={conv.id}
+                            style={{ display:"flex", alignItems:"center", gap:4, marginBottom:2 }}>
+                            <button
+                              onClick={() => selectConversation(conv.id)}
+                              style={{ flex:1, padding:"8px 10px", borderRadius:9, background:isActive?`${T.gold}22`:"transparent", border:isActive?`1.5px solid ${T.gold}45`:"1.5px solid transparent", color:isActive?T.gold:`${T.gold}75`, fontSize:12.5, fontWeight:isActive?600:400, textAlign:"left", cursor:"pointer", fontFamily:"'DM Sans',sans-serif", lineHeight:1.4, transition:"all 0.13s", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}
+                              onMouseEnter={e=>{ if(!isActive){ e.currentTarget.style.background=`rgba(255,255,255,0.07)`; e.currentTarget.style.color=T.gold; }}}
+                              onMouseLeave={e=>{ if(!isActive){ e.currentTarget.style.background="transparent"; e.currentTarget.style.color=`${T.gold}75`; }}}>
+                              {conv.title}
+                            </button>
+                            {/* Delete button — shows on hover */}
+                            <button
+                              onClick={(e) => { e.stopPropagation(); deleteConversation(conv.id); }}
+                              title="Slet samtale"
+                              style={{ width:24, height:24, borderRadius:6, background:"transparent", border:"none", color:`${T.gold}35`, fontSize:13, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all 0.13s" }}
+                              onMouseEnter={e=>{ e.currentTarget.style.color="#e74c3c"; e.currentTarget.style.background="rgba(231,76,60,0.12)"; }}
+                              onMouseLeave={e=>{ e.currentTarget.style.color=`${T.gold}35`; e.currentTarget.style.background="transparent"; }}>
+                              ×
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
                   ))}
                 </div>
+
+                {/* Fag-fokus — kept compact at bottom */}
+                <div style={{ borderTop:`1px solid ${T.gold}15`, padding:"10px 12px" }}>
+                  <div style={{ fontSize:9.5, fontWeight:700, color:`${T.gold}55`, letterSpacing:"1px", textTransform:"uppercase", marginBottom:7, fontFamily:"'DM Sans',sans-serif" }}>Fag-fokus</div>
+                  <div style={{ display:"flex", flexWrap:"wrap", gap:5 }}>
+                    {SUBJECTS.map(s => {
+                      const active = activeSubject === s.id;
+                      return (
+                        <button key={s.id}
+                          onClick={() => setActiveSubject(active ? null : s.id)}
+                          title={s.label}
+                          style={{ padding:"4px 9px", borderRadius:7, fontSize:12, background:active?`${T.gold}28`:"transparent", color:active?T.gold:`${T.gold}65`, border:active?`1.5px solid ${T.gold}55`:`1.5px solid rgba(255,255,255,0.1)`, cursor:"pointer", fontFamily:"'DM Sans',sans-serif", transition:"all 0.13s" }}>
+                          {s.icon} {s.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <button className="nb" onClick={()=>setSidebarOpen(false)}
-                  style={{ padding:"11px 16px", borderTop:`1px solid ${T.gold}18`, color:`${T.gold}45`, fontSize:12, textAlign:"left", display:"flex", alignItems:"center", gap:6, fontFamily:"'DM Sans',sans-serif" }}>
+                  style={{ padding:"10px 16px", borderTop:`1px solid ${T.gold}15`, color:`${T.gold}40`, fontSize:12, textAlign:"left", display:"flex", alignItems:"center", gap:6, fontFamily:"'DM Sans',sans-serif" }}>
                   <span style={{ fontSize:15 }}>‹</span> Skjul panel
                 </button>
               </div>
@@ -600,8 +689,16 @@ export default function FagAI() {
 
             {/* Chat main */}
             <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden", background:T.cream }}>
+              {loadingMsgs ? (
+                <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                  <div style={{ textAlign:"center" }}>
+                    <div style={{ fontSize:28, marginBottom:10, opacity:0.5 }}>💬</div>
+                    <div style={{ fontSize:13, color:T.textLight, fontFamily:"'DM Sans',sans-serif" }}>Indlæser samtale…</div>
+                  </div>
+                </div>
+              ) : (
               <div style={{ flex:1, overflowY:"auto", padding:"36px 52px", display:"flex", flexDirection:"column", gap:26 }}>
-                {messages.map((msg,i) => (
+                {displayMessages.map((msg,i) => (
                   <div key={i} className="anim" style={{ display:"flex", gap:14, justifyContent:msg.role==="user"?"flex-end":"flex-start", alignItems:"flex-start" }}>
                     {msg.role==="assistant" && (
                       <div style={{ width:40, height:40, borderRadius:13, background:`linear-gradient(135deg,${T.burgundy},${T.burgundyLight})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:19, flexShrink:0, boxShadow:`0 3px 14px ${T.shadowDeep}`, border:`2px solid ${T.gold}50`, marginTop:1 }}>🎓</div>
@@ -626,6 +723,7 @@ export default function FagAI() {
                 )}
                 <div ref={endRef}/>
               </div>
+              )}
 
               <div style={{ borderTop:`2px solid ${T.creamBorder}`, background:T.creamDark, padding:"18px 52px 22px" }}>
                 <div className="ibox" style={{ display:"flex", alignItems:"flex-end", gap:12, background:T.white, borderRadius:18, border:`2px solid ${T.creamBorder}`, padding:"11px 11px 11px 20px", boxShadow:`0 3px 14px ${T.shadow}`, transition:"border-color 0.2s,box-shadow 0.2s" }}>
