@@ -1,4 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "./useAuth.jsx";
+import AuthModal from "./AuthModal.jsx";
 
 // ─── THEMES ──────────────────────────────────────────────────────────────────
 const THEMES = {
@@ -98,7 +101,7 @@ const QUICK_STARTERS = [
 
 const sub = (id) => SUBJECTS.find(s => s.id === id) || SUBJECTS[0];
 
-// ─── Markdown renderer (for chat) ────────────────────────────────────────────
+// ─── Markdown renderer ────────────────────────────────────────────────────────
 function inlineMd(text, T) {
   const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
   return parts.map((p, i) => {
@@ -252,7 +255,6 @@ function ThemeSwitcher({ current, onChange, T }) {
               style={{ display:"flex", alignItems:"center", gap:10, width:"100%", padding:"10px 14px", background:current===key ? `${T.creamDark}` : "transparent", border:"none", cursor:"pointer", textAlign:"left", borderBottom:`1px solid ${T.creamBorder}20`, transition:"background 0.12s" }}
               onMouseEnter={e => { if (current!==key) e.currentTarget.style.background=T.cream; }}
               onMouseLeave={e => { if (current!==key) e.currentTarget.style.background="transparent"; }}>
-              {/* Mini color preview */}
               <div style={{ display:"flex", gap:3, flexShrink:0 }}>
                 <div style={{ width:14, height:14, borderRadius:"50%", background:theme.burgundy, border:"1.5px solid rgba(0,0,0,0.12)" }}/>
                 <div style={{ width:14, height:14, borderRadius:"50%", background:theme.gold, border:"1.5px solid rgba(0,0,0,0.12)" }}/>
@@ -270,15 +272,64 @@ function ThemeSwitcher({ current, onChange, T }) {
   );
 }
 
+// ─── User Menu (når logget ind) ───────────────────────────────────────────────
+function UserMenu({ user, onLogout, T }) {
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    const handler = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const initial = (user.name || user.email || "?")[0].toUpperCase();
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button onClick={() => setOpen(o => !o)}
+        style={{ display: "flex", alignItems: "center", gap: 8, height: 36, padding: "0 12px 0 6px", background: `${T.gold}20`, border: `1.5px solid ${T.gold}45`, borderRadius: 20, cursor: "pointer", color: T.gold, transition: "all 0.15s" }}>
+        {/* Avatar circle */}
+        <div style={{ width: 26, height: 26, borderRadius: "50%", background: `linear-gradient(135deg,${T.gold},${T.goldDark})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: T.burgundy, fontFamily: "'DM Sans',sans-serif" }}>
+          {initial}
+        </div>
+        <span style={{ fontSize: 13, fontWeight: 600, fontFamily: "'DM Sans',sans-serif", maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {user.name || user.email}
+        </span>
+        <span style={{ fontSize: 10, opacity: 0.6 }}>▾</span>
+      </button>
+
+      {open && (
+        <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, background: T.white, borderRadius: 14, border: `2px solid ${T.creamBorder}`, boxShadow: `0 12px 40px ${T.shadowDeep}`, overflow: "hidden", minWidth: 200, zIndex: 100 }}>
+          {/* User info */}
+          <div style={{ padding: "14px 16px", borderBottom: `1px solid ${T.creamBorder}`, background: T.creamDark }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: T.text, fontFamily: "'DM Sans',sans-serif" }}>{user.name || "Bruger"}</div>
+            <div style={{ fontSize: 12, color: T.textLight, fontFamily: "'DM Sans',sans-serif", marginTop: 2 }}>{user.email}</div>
+          </div>
+          {/* Log ud */}
+          <button onClick={() => { setOpen(false); onLogout(); }}
+            style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "12px 16px", background: "transparent", border: "none", cursor: "pointer", color: "#c0392b", fontSize: 13, fontWeight: 600, fontFamily: "'DM Sans',sans-serif", transition: "background 0.12s" }}
+            onMouseEnter={e => e.currentTarget.style.background = "#fff0f0"}
+            onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+            onClick={() => { setOpen(false); onLogout(); navigate("/"); }}>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main App ─────────────────────────────────────────────────────────────────
 export default function FagAI() {
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const [themeKey, setThemeKey] = useState("classic");
   const T = THEMES[themeKey];
 
-  const ENV_KEY = import.meta.env.VITE_OPENAI_API_KEY || "";
-  const [apiKey, setApiKey]           = useState(ENV_KEY);
-  const [apiKeyInput, setApiKeyInput] = useState("");
-  const [apiKeySaved, setApiKeySaved] = useState(!!ENV_KEY);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authTab, setAuthTab]             = useState("login");
+
+  const apiKey = import.meta.env.VITE_OPENAI_API_KEY || "";
   const [view, setView]               = useState("chat");
   const [activeSubject, setActiveSubject] = useState(null);
   const [messages, setMessages]       = useState([
@@ -300,7 +351,6 @@ export default function FagAI() {
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior:"smooth" }); }, [messages, loading]);
 
-  // Sync contentEditable when switching notes
   useEffect(() => {
     if (editingNote && editorRef.current && activeNote) {
       if (editorRef.current.innerHTML !== activeNote.content) {
@@ -337,7 +387,6 @@ export default function FagAI() {
   };
 
   const handleKey = (e) => { if (e.key==="Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } };
-  const saveKey   = () => { const k=apiKeyInput.trim(); if(!k.startsWith("sk-")){alert("Ugyldig nøgle");return;} setApiKey(k); setApiKeySaved(true); };
 
   const filteredNotes = notes.filter(n =>
     n.title.toLowerCase().includes(noteSearch.toLowerCase()) ||
@@ -368,6 +417,9 @@ export default function FagAI() {
 
   const stripHtml = (html) => html?.replace(/<[^>]+>/g, "") || "";
 
+  // Åbn auth modal og sæt tab
+  const openAuth = (tab) => { setAuthTab(tab); setShowAuthModal(true); };
+
   return (
     <div style={{ display:"flex",flexDirection:"column",height:"100vh",background:T.cream,fontFamily:"'Lora','Georgia',serif",overflow:"hidden" }}>
       <style>{`
@@ -379,6 +431,7 @@ export default function FagAI() {
         ::-webkit-scrollbar-thumb:hover{background:${T.textLight};}
         @keyframes fadeUp{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
         @keyframes blink{0%,100%{opacity:1;}50%{opacity:0.12;}}
+        @keyframes spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
         .anim{animation:fadeUp 0.22s ease;}
         .nb{border:none;background:none;cursor:pointer;}
         .npill{transition:all 0.18s ease;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;}
@@ -414,18 +467,26 @@ export default function FagAI() {
         .note-view-content p{margin:3px 0;line-height:1.8;}
         .note-view-content strong{font-weight:700;}
         .note-view-content code{background:${T.creamDark};border:1px solid ${T.creamBorder};border-radius:4px;padding:1px 5px;font-family:'JetBrains Mono',monospace;font-size:0.88em;color:${T.burgundy};}
+        .brand-btn:hover { opacity: 0.85; }
+        .brand-btn:active { transform: scale(0.97); }
+        .brand-btn { transition: all 0.15s ease; }
       `}</style>
 
       {/* ─── TOPBAR ─── */}
       <header style={{ height:58, background:T.burgundy, display:"flex", alignItems:"center", padding:"0 24px", gap:20, flexShrink:0, boxShadow:`0 3px 20px ${T.shadowDeep}`, zIndex:30, borderBottom:`2.5px solid ${T.creamBorder}` }}>
-        {/* Brand */}
-        <div style={{ display:"flex", alignItems:"center", gap:12, flexShrink:0, minWidth:168 }}>
+
+        {/* Brand — klikbart → tilbage til landing */}
+        <button
+          className="brand-btn nb"
+          onClick={() => navigate("/")}
+          title="Gå til forsiden"
+          style={{ display:"flex", alignItems:"center", gap:12, flexShrink:0, minWidth:168, cursor:"pointer" }}>
           <div style={{ width:38, height:38, borderRadius:11, background:`linear-gradient(135deg,${T.gold},${T.goldDark})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:19, boxShadow:"0 2px 12px rgba(0,0,0,0.35)", border:`1.5px solid ${T.goldDeep}` }}>🎓</div>
           <div>
             <div style={{ fontWeight:700, fontSize:19, color:T.gold, letterSpacing:"0.3px", fontFamily:"'Lora',serif", lineHeight:1 }}>FagAI</div>
             <div style={{ fontSize:9.5, color:`${T.gold}75`, letterSpacing:"1.2px", fontFamily:"'DM Sans',sans-serif", textTransform:"uppercase" }}>Læringsassistent</div>
           </div>
-        </div>
+        </button>
 
         {/* Nav tabs */}
         <div style={{ display:"flex", gap:3, background:"rgba(0,0,0,0.22)", borderRadius:12, padding:4, border:`1.5px solid ${T.gold}25` }}>
@@ -449,22 +510,27 @@ export default function FagAI() {
         {/* Theme switcher */}
         <ThemeSwitcher current={themeKey} onChange={setThemeKey} T={T} />
 
-        {/* API key */}
-        {!apiKeySaved ? (
-          <div style={{ display:"flex", alignItems:"center", gap:9 }}>
-            <div style={{ position:"relative" }}>
-              <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", fontSize:13 }}>🔑</span>
-              <input value={apiKeyInput} onChange={e=>setApiKeyInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&saveKey()} type="password" placeholder="OpenAI API-nøgle..."
-                style={{ paddingLeft:32, paddingRight:12, height:36, border:`1.5px solid ${T.gold}40`, borderRadius:9, fontSize:13, color:T.gold, background:"rgba(0,0,0,0.22)", width:240, fontFamily:"'DM Sans',sans-serif" }}/>
-            </div>
-            <button onClick={saveKey} className="btn" style={{ height:36, padding:"0 16px", background:`linear-gradient(135deg,${T.gold},${T.goldDark})`, color:T.burgundy, borderRadius:9, fontSize:13, fontWeight:700, boxShadow:"0 2px 10px rgba(0,0,0,0.28)" }}>Gem nøgle</button>
-          </div>
+        {/* ── Auth-sektion ── */}
+        {user ? (
+          /* Logget ind → vis brugermenu */
+          <UserMenu user={user} onLogout={logout} T={T} />
         ) : (
+          /* Ikke logget ind → Log ind + Registrér */
           <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-            <div style={{ display:"flex", alignItems:"center", gap:6, background:`${T.gold}18`, color:T.gold, borderRadius:8, padding:"5px 14px", fontSize:12.5, fontWeight:600, border:`1.5px solid ${T.gold}38`, fontFamily:"'DM Sans',sans-serif" }}>✓ Tilsluttet</div>
-            <button onClick={()=>{setApiKey("");setApiKeySaved(false);setApiKeyInput("");}} className="nb" style={{ fontSize:12, color:`${T.gold}65`, padding:"4px 9px", borderRadius:6, border:`1px solid ${T.gold}25`, fontFamily:"'DM Sans',sans-serif" }}>ændre</button>
+            <button className="btn"
+              onClick={() => openAuth("login")}
+              style={{ height:36, padding:"0 18px", background:"transparent", color:T.gold, border:`1.5px solid ${T.gold}55`, borderRadius:9, fontSize:13, fontWeight:600, fontFamily:"'DM Sans',sans-serif" }}>
+              Log ind
+            </button>
+            <button className="btn"
+              onClick={() => openAuth("register")}
+              style={{ height:36, padding:"0 18px", background:`linear-gradient(135deg,${T.gold},${T.goldDark})`, color:T.burgundy, border:"none", borderRadius:9, fontSize:13, fontWeight:700, fontFamily:"'DM Sans',sans-serif", boxShadow:`0 2px 10px rgba(0,0,0,0.25)` }}>
+              Registrér
+            </button>
           </div>
         )}
+
+
       </header>
 
       {/* ─── BODY ─── */}
@@ -482,19 +548,8 @@ export default function FagAI() {
                     const active = activeSubject === s.id;
                     return (
                       <button key={s.id} className="sbchip" onClick={()=>setActiveSubject(active?null:s.id)}
-                        style={{
-                          display:"flex", alignItems:"center", gap:10, width:"100%",
-                          padding:"9px 12px", borderRadius:10, marginBottom:4,
-                          background: active ? `${T.gold}25` : `rgba(255,255,255,0.04)`,
-                          color: active ? T.gold : `${T.gold}80`,
-                          fontWeight: active ? 700 : 400,
-                          fontSize:13.5,
-                          border: active
-                            ? `2px solid ${T.gold}70`
-                            : `2px solid rgba(255,255,255,0.12)`,
-                          boxShadow: active ? `inset 0 1px 0 rgba(255,255,255,0.1), 0 2px 8px ${T.shadowDeep}` : "none",
-                        }}>
-                        <span style={{ width:24, height:24, borderRadius:7, background: active ? `${T.gold}30` : `rgba(255,255,255,0.08)`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, flexShrink:0, border: active ? `1px solid ${T.gold}50` : `1px solid rgba(255,255,255,0.1)` }}>{s.icon}</span>
+                        style={{ display:"flex", alignItems:"center", gap:10, width:"100%", padding:"9px 12px", borderRadius:10, marginBottom:4, background:active?`${T.gold}25`:`rgba(255,255,255,0.04)`, color:active?T.gold:`${T.gold}80`, fontWeight:active?700:400, fontSize:13.5, border:active?`2px solid ${T.gold}70`:`2px solid rgba(255,255,255,0.12)`, boxShadow:active?`inset 0 1px 0 rgba(255,255,255,0.1), 0 2px 8px ${T.shadowDeep}`:"none" }}>
+                        <span style={{ width:24, height:24, borderRadius:7, background:active?`${T.gold}30`:`rgba(255,255,255,0.08)`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, flexShrink:0, border:active?`1px solid ${T.gold}50`:`1px solid rgba(255,255,255,0.1)` }}>{s.icon}</span>
                         {s.label}
                       </button>
                     );
@@ -533,7 +588,9 @@ export default function FagAI() {
                       {msg.role==="assistant" ? renderMd(msg.content, T) : msg.content}
                     </div>
                     {msg.role==="user" && (
-                      <div style={{ width:40, height:40, borderRadius:13, background:`linear-gradient(135deg,${T.gold},${T.goldDark})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:19, flexShrink:0, border:`2px solid ${T.goldDeep}`, marginTop:1 }}>👤</div>
+                      <div style={{ width:40, height:40, borderRadius:13, background:`linear-gradient(135deg,${T.gold},${T.goldDark})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:19, flexShrink:0, border:`2px solid ${T.goldDeep}`, marginTop:1 }}>
+                        {user ? (user.name || user.email || "?")[0].toUpperCase() : "👤"}
+                      </div>
                     )}
                   </div>
                 ))}
@@ -558,9 +615,9 @@ export default function FagAI() {
                     style={{ flex:1, border:"none", background:"transparent", fontSize:15, color:T.text, lineHeight:1.6, height:44, maxHeight:160, overflowY:"auto", fontFamily:"'Lora',serif", paddingTop:4 }}/>
                   <div style={{ display:"flex", alignItems:"center", gap:9, flexShrink:0 }}>
                     {input && <button className="nb" onClick={()=>{setInput("");if(textareaRef.current)textareaRef.current.style.height="44px";}} style={{ width:33, height:33, borderRadius:"50%", background:T.creamDark, color:T.textLight, fontSize:15, display:"flex", alignItems:"center", justifyContent:"center", border:`1.5px solid ${T.creamBorder}` }}>✕</button>}
-                    <button className="btn" onClick={()=>sendMessage()} disabled={!input.trim()||loading||!apiKey}
-                      style={{ width:48, height:48, borderRadius:14, background:input.trim()&&!loading&&apiKey?`linear-gradient(135deg,${T.burgundy},${T.burgundyLight})`:T.creamBorder, cursor:input.trim()&&!loading&&apiKey?"pointer":"not-allowed", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:input.trim()&&!loading&&apiKey?`0 5px 16px ${T.shadowDeep}`:"none" }}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={input.trim()&&!loading&&apiKey?T.gold:T.textLight} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    <button className="btn" onClick={()=>sendMessage()} disabled={!input.trim()||loading}
+                      style={{ width:48, height:48, borderRadius:14, background:input.trim()&&!loading?`linear-gradient(135deg,${T.burgundy},${T.burgundyLight})`:T.creamBorder, cursor:input.trim()&&!loading?"pointer":"not-allowed", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:input.trim()&&!loading?`0 5px 16px ${T.shadowDeep}`:"none" }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={input.trim()&&!loading?T.gold:T.textLight} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                     </button>
                   </div>
                 </div>
@@ -575,7 +632,6 @@ export default function FagAI() {
         {/* ══════════════ NOTER ══════════════ */}
         {view==="notes" && (
           <div style={{ display:"flex", flex:1, overflow:"hidden" }}>
-            {/* List */}
             <div style={{ width:298, minWidth:298, background:T.white, borderRight:`2.5px solid ${T.creamBorder}`, display:"flex", flexDirection:"column", overflow:"hidden", boxShadow:`3px 0 10px ${T.shadow}` }}>
               <div style={{ padding:"16px 16px 12px", borderBottom:`2px solid ${T.creamBorder}`, background:T.creamDark }}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
@@ -612,7 +668,6 @@ export default function FagAI() {
               </div>
             </div>
 
-            {/* Editor panel */}
             <div style={{ flex:1, background:T.cream, display:"flex", flexDirection:"column", overflow:"hidden" }}>
               {showNewNote ? (
                 <div style={{ flex:1, overflowY:"auto", padding:"44px 56px" }}>
@@ -626,11 +681,10 @@ export default function FagAI() {
                         {SUBJECTS.map(s=><option key={s.id} value={s.id}>{s.icon} {s.label}</option>)}
                       </select>
                     </div>
-                    {/* Rich text editor */}
                     <div style={{ border:`2px solid ${T.creamBorder}`, borderRadius:11, overflow:"hidden", marginBottom:18, boxShadow:`0 2px 8px ${T.shadow}` }}>
                       <RichToolbar editorRef={newEditorRef} T={T}/>
                       <div ref={newEditorRef} contentEditable suppressContentEditableWarning
-                        data-placeholder="Skriv dine noter her – brug værktøjslinjen til fed tekst, lister osv..."
+                        data-placeholder="Skriv dine noter her..."
                         style={{ minHeight:280, padding:"16px 18px", fontSize:14.5, fontFamily:"'Lora',serif", color:T.text, background:T.white, lineHeight:1.8 }}
                       />
                     </div>
@@ -660,12 +714,9 @@ export default function FagAI() {
                       </div>
                       <div style={{ display:"flex", gap:9, marginLeft:18 }}>
                         {editingNote===activeNote.id
-                          ? <button className="btn" onClick={commitEditedNote}
-                              style={{ padding:"8px 20px", background:T.burgundy, color:T.gold, border:`2px solid ${T.burgundy}`, borderRadius:10, fontSize:13, fontWeight:700 }}>Færdig ✓</button>
-                          : <button className="btn" onClick={()=>{ setEditingNote(activeNote.id); setTimeout(()=>{ if(editorRef.current){ editorRef.current.innerHTML=activeNote.content||""; editorRef.current.focus(); } },50); }}
-                              style={{ padding:"8px 20px", background:T.white, color:T.burgundy, border:`2px solid ${T.burgundy}`, borderRadius:10, fontSize:13, fontWeight:600 }}>Rediger</button>}
-                        <button className="btn" onClick={()=>{setNotes(notes.filter(n=>n.id!==activeNote.id));setActiveNote(null);}}
-                          style={{ padding:"8px 14px", background:T.white, color:"#c0392b", border:"2px solid #f5c6cb", borderRadius:10, fontSize:13, fontWeight:600 }}>Slet</button>
+                          ? <button className="btn" onClick={commitEditedNote} style={{ padding:"8px 20px", background:T.burgundy, color:T.gold, border:`2px solid ${T.burgundy}`, borderRadius:10, fontSize:13, fontWeight:700 }}>Færdig ✓</button>
+                          : <button className="btn" onClick={()=>{ setEditingNote(activeNote.id); setTimeout(()=>{ if(editorRef.current){ editorRef.current.innerHTML=activeNote.content||""; editorRef.current.focus(); } },50); }} style={{ padding:"8px 20px", background:T.white, color:T.burgundy, border:`2px solid ${T.burgundy}`, borderRadius:10, fontSize:13, fontWeight:600 }}>Rediger</button>}
+                        <button className="btn" onClick={()=>{setNotes(notes.filter(n=>n.id!==activeNote.id));setActiveNote(null);}} style={{ padding:"8px 14px", background:T.white, color:"#c0392b", border:"2px solid #f5c6cb", borderRadius:10, fontSize:13, fontWeight:600 }}>Slet</button>
                       </div>
                     </div>
                     <div style={{ height:2, background:`linear-gradient(90deg,${T.burgundy}80,transparent)`, marginBottom:26, borderRadius:2 }}/>
@@ -738,6 +789,24 @@ export default function FagAI() {
           </div>
         )}
       </div>
+
+      {/* ─── AUTH MODAL ─── */}
+      {showAuthModal && (
+        <AuthModal
+          T={T}
+          initialTab={authTab}
+          onClose={() => setShowAuthModal(false)}
+          onAuthSuccess={(userData) => {
+            setShowAuthModal(false);
+            // Løft user op til parent hvis nødvendigt – her håndteres det i main.jsx
+            // For nu: vis bare et velkomst-besked
+            setMessages(prev => [
+              ...prev,
+              { role:"assistant", content:`Velkommen, **${userData.name || userData.email}**! 👋 Du er nu logget ind. Hvad vil du lære om i dag?` }
+            ]);
+          }}
+        />
+      )}
     </div>
   );
 }

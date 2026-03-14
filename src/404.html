@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="utf-8">
+  <title>FagAI</title>
+  <script>
+    // GitHub Pages SPA fix.
+    // When a user visits /fagai/chat directly or refreshes the page,
+    // GitHub Pages returns this 404.html because the file doesn't exist.
+    // We store the intended path and redirect to index.html which
+    // hands off to React Router.
+    (function () {
+      var location = window.location;
+      var base     = '/fagai';
+
+      // Strip the base path to get the app-level path (e.g. /chat)
+      var pathname = location.pathname;
+      if (pathname.indexOf(base) === 0) {
+        pathname = pathname.slice(base.length) || '/';
+      }
+
+      // Encode as a query param so it survives the redirect cleanly
+      var redirectUrl = base + '/?r=' + encodeURIComponent(
+        pathname + location.search + location.hash
+      );
+
+      location.replace(redirectUrl);
+    })();
+  </script>
+</head>
+<body></body>
+</html>

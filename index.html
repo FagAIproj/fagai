@@ -2,10 +2,26 @@
 <html lang="da">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="/fagai/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>FagAI – Din Læringsassistent</title>
     <meta name="description" content="FagAI hjælper skoleelever med at lære smartere og mere effektivt." />
+    <script>
+      // Read the intended path that 404.html stored as ?r=...
+      // and rewrite the URL before React Router initialises.
+      (function () {
+        var search = window.location.search;
+        if (search.indexOf('?r=') === 0) {
+          var path = decodeURIComponent(search.slice(3));
+          // Restore to the correct URL without the ?r= param
+          window.history.replaceState(
+            null,
+            document.title,
+            '/fagai' + (path.charAt(0) === '/' ? path : '/' + path)
+          );
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
