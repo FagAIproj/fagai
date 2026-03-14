@@ -36,7 +36,7 @@ const SUBJECTS = [
 const TESTIMONIALS = [
   { name: "Emma, 9. klasse", text: "Jeg forstår endelig algebra! FagAI forklarer det på en måde min lærer aldrig har gjort.", avatar: "👩‍🎓" },
   { name: "Mikkel, 1g",      text: "Bruger det hver dag til at organisere mine noter. Det er så meget nemmere end Word.",        avatar: "👨‍💻" },
-  { name: "Sofie, 3g",       text: "Har fået meget bedre karakterer siden jeg begyndte at bruge FagAI til at forstå stoffet.",   avatar: "📖" },
+  { name: "Sofie, 3g",       text: "Har fået meget bedre karakterer siden jeg begyndte at bruge FagAI til at forstå det.",   avatar: "📖" },
 ];
 
 export default function LandingPage() {
