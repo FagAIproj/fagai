@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "./useAuth.jsx";
+import { useNotes } from "./useNotes.jsx";
 import AuthModal from "./AuthModal.jsx";
 
 // ─── THEMES ──────────────────────────────────────────────────────────────────
@@ -81,14 +82,6 @@ const SUBJECTS = [
   { id:"social",  label:"Samfundsfag",   icon:"⚖",   accent:"#6a1b9a" },
 ];
 
-const INITIAL_NOTES = [
-  { id:1, title:"Pythagoras sætning", subject:"math", date:"I dag",
-    content:"<p><strong>a² + b² = c²</strong></p><p>Gælder kun for retvinklede trekanter.</p><ul><li>Hypotenusen (c) er siden over for den rette vinkel</li><li>Den er altid den <strong>længste</strong> side</li></ul>", pinned:true },
-  { id:2, title:"Novelle-analyse", subject:"danish", date:"I går",
-    content:"<p>Husk at analysere:</p><ul><li><strong>Komposition</strong> – opbygning og struktur</li><li><strong>Fortæller</strong> – 1. eller 3. person?</li><li><strong>Tema og motiv</strong></li><li><strong>Miljø og tid</strong></li><li><strong>Karakterer</strong></li></ul><p>Brug altid <strong>citater</strong> som belæg!</p>", pinned:false },
-  { id:3, title:"Python – for-løkker", subject:"coding", date:"Mandag",
-    content:"<p><strong>Grundlæggende syntax:</strong></p><ul><li><code>for i in range(10): print(i)</code></li><li><code>range(start, stop, step)</code></li></ul><p>Eksempel: <code>range(0, 10, 2)</code> → 0, 2, 4, 6, 8</p>", pinned:false },
-];
 
 const QUICK_STARTERS = [
   { label:"Forklar fotosyntese trin for trin",    subject:"science" },
@@ -330,24 +323,33 @@ export default function FagAI() {
   const [authTab, setAuthTab]             = useState("login");
 
   const apiKey = import.meta.env.VITE_OPENAI_API_KEY || "";
-  const [view, setView]               = useState("chat");
+  const [view, setView]                   = useState("chat");
   const [activeSubject, setActiveSubject] = useState(null);
-  const [messages, setMessages]       = useState([
+  const [messages, setMessages]           = useState([
     { role:"assistant", content:"Hej! 👋 Jeg er **FagAI** – din personlige læringsassistent.\n\nJeg kan hjælpe dig med at forstå fag, organisere noter og komme med idéer til opgaver.\n\n**Hvad vil du lære om i dag?**" }
   ]);
-  const [input, setInput]             = useState("");
-  const [loading, setLoading]         = useState(false);
-  const [notes, setNotes]             = useState(INITIAL_NOTES);
-  const [activeNote, setActiveNote]   = useState(null);
-  const [editingNote, setEditingNote] = useState(null);
-  const [noteSearch, setNoteSearch]   = useState("");
-  const [showNewNote, setShowNewNote] = useState(false);
-  const [newNote, setNewNote]         = useState({ title:"", subject:"math", content:"" });
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [input, setInput]                 = useState("");
+  const [loading, setLoading]             = useState(false);
+  const [activeNote, setActiveNote]       = useState(null);
+  const [editingNote, setEditingNote]     = useState(null);
+  const [noteSearch, setNoteSearch]       = useState("");
+  const [showNewNote, setShowNewNote]     = useState(false);
+  const [newNote, setNewNote]             = useState({ title:"", subject:"math", content:"" });
+  const [sidebarOpen, setSidebarOpen]     = useState(true);
   const endRef       = useRef(null);
   const textareaRef  = useRef(null);
   const editorRef    = useRef(null);
   const newEditorRef = useRef(null);
+
+  // ── Supabase notes ──────────────────────────────────────────────────────────
+  const {
+    notes,
+    loading: notesLoading,
+    saving:  notesSaving,
+    createNote,
+    debouncedUpdate,
+    deleteNote,
+  } = useNotes(user?.id);
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior:"smooth" }); }, [messages, loading]);
 
@@ -358,6 +360,14 @@ export default function FagAI() {
       }
     }
   }, [editingNote, activeNote?.id]);
+
+  // Keep activeNote in sync when notes array updates (e.g. after autosave)
+  useEffect(() => {
+    if (activeNote) {
+      const updated = notes.find(n => n.id === activeNote.id);
+      if (updated) setActiveNote(updated);
+    }
+  }, [notes]);
 
   const sendMessage = async (text) => {
     const t = (text || input).trim();
@@ -393,20 +403,32 @@ export default function FagAI() {
     n.content.replace(/<[^>]+>/g,"").toLowerCase().includes(noteSearch.toLowerCase())
   );
 
-  const saveNewNote = () => {
+  const saveNewNote = async () => {
     if (!newNote.title.trim()) return;
-    const htmlContent = newEditorRef.current?.innerHTML || newNote.content || "<p></p>";
-    const n = { id:Date.now(), ...newNote, content:htmlContent, date:"Nu", pinned:false };
-    setNotes([n,...notes]); setNewNote({title:"",subject:"math",content:""}); setShowNewNote(false); setActiveNote(n);
-    if (newEditorRef.current) newEditorRef.current.innerHTML = "";
+    const body = newEditorRef.current?.innerHTML || "<p></p>";
+    const created = await createNote({ title: newNote.title, subject: newNote.subject, body });
+    if (created) {
+      setNewNote({ title:"", subject:"math", content:"" });
+      setShowNewNote(false);
+      setActiveNote(created);
+      if (newEditorRef.current) newEditorRef.current.innerHTML = "";
+    }
   };
 
   const commitEditedNote = () => {
     if (!activeNote || !editorRef.current) return;
     const html = editorRef.current.innerHTML;
-    setNotes(prev => prev.map(n => n.id===activeNote.id ? {...n, content:html} : n));
-    setActiveNote(prev => prev ? {...prev, content:html} : prev);
+    // Trigger debounced save — will hit Supabase after 2.5 s
+    debouncedUpdate(activeNote.id, { content: html });
+    setActiveNote(prev => prev ? { ...prev, content: html } : prev);
     setEditingNote(null);
+  };
+
+  // Called on every keystroke in the editor — debounced, no spam
+  const handleEditorChange = () => {
+    if (!activeNote || !editorRef.current) return;
+    const html = editorRef.current.innerHTML;
+    debouncedUpdate(activeNote.id, { content: html });
   };
 
   const navItems = [
@@ -635,7 +657,11 @@ export default function FagAI() {
             <div style={{ width:298, minWidth:298, background:T.white, borderRight:`2.5px solid ${T.creamBorder}`, display:"flex", flexDirection:"column", overflow:"hidden", boxShadow:`3px 0 10px ${T.shadow}` }}>
               <div style={{ padding:"16px 16px 12px", borderBottom:`2px solid ${T.creamBorder}`, background:T.creamDark }}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
-                  <span style={{ fontWeight:700, fontSize:17, color:T.text, fontFamily:"'Lora',serif" }}>Mine noter</span>
+                  <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                    <span style={{ fontWeight:700, fontSize:17, color:T.text, fontFamily:"'Lora',serif" }}>Mine noter</span>
+                    {notesSaving && <span style={{ fontSize:11, color:T.textLight, fontFamily:"'DM Sans',sans-serif", fontStyle:"italic" }}>Gemmer…</span>}
+                    {notesLoading && <span style={{ fontSize:11, color:T.textLight, fontFamily:"'DM Sans',sans-serif" }}>Indlæser…</span>}
+                  </div>
                   <button className="btn" onClick={()=>{setShowNewNote(true);setActiveNote(null);setEditingNote(null);}}
                     style={{ width:32, height:32, borderRadius:10, background:T.burgundy, color:T.gold, fontWeight:700, fontSize:20, display:"flex", alignItems:"center", justifyContent:"center", boxShadow:`0 2px 10px ${T.shadowDeep}` }}>+</button>
                 </div>
@@ -702,7 +728,11 @@ export default function FagAI() {
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:22 }}>
                       <div style={{ flex:1 }}>
                         {editingNote===activeNote.id
-                          ? <input value={activeNote.title} onChange={e=>{ setActiveNote(p=>({...p,title:e.target.value})); setNotes(prev=>prev.map(n=>n.id===activeNote.id?{...n,title:e.target.value}:n)); }}
+                          ? <input value={activeNote.title} onChange={e=>{
+                              const t = e.target.value;
+                              setActiveNote(p=>({...p, title:t}));
+                              debouncedUpdate(activeNote.id, { title: t });
+                            }}
                               style={{ fontSize:28, fontWeight:700, color:T.text, border:"none", background:"transparent", fontFamily:"'Lora',serif", width:"100%", borderBottom:`2.5px solid ${T.creamBorder}`, paddingBottom:5 }}/>
                           : <h1 style={{ fontSize:28, fontWeight:700, color:T.text, letterSpacing:"-0.4px", fontFamily:"'Lora',serif" }}>{activeNote.title}</h1>}
                         <div style={{ display:"flex", alignItems:"center", gap:10, marginTop:9 }}>
@@ -716,7 +746,7 @@ export default function FagAI() {
                         {editingNote===activeNote.id
                           ? <button className="btn" onClick={commitEditedNote} style={{ padding:"8px 20px", background:T.burgundy, color:T.gold, border:`2px solid ${T.burgundy}`, borderRadius:10, fontSize:13, fontWeight:700 }}>Færdig ✓</button>
                           : <button className="btn" onClick={()=>{ setEditingNote(activeNote.id); setTimeout(()=>{ if(editorRef.current){ editorRef.current.innerHTML=activeNote.content||""; editorRef.current.focus(); } },50); }} style={{ padding:"8px 20px", background:T.white, color:T.burgundy, border:`2px solid ${T.burgundy}`, borderRadius:10, fontSize:13, fontWeight:600 }}>Rediger</button>}
-                        <button className="btn" onClick={()=>{setNotes(notes.filter(n=>n.id!==activeNote.id));setActiveNote(null);}} style={{ padding:"8px 14px", background:T.white, color:"#c0392b", border:"2px solid #f5c6cb", borderRadius:10, fontSize:13, fontWeight:600 }}>Slet</button>
+                        <button className="btn" onClick={async ()=>{ await deleteNote(activeNote.id); setActiveNote(null); }} style={{ padding:"8px 14px", background:T.white, color:"#c0392b", border:"2px solid #f5c6cb", borderRadius:10, fontSize:13, fontWeight:600 }}>Slet</button>
                       </div>
                     </div>
                     <div style={{ height:2, background:`linear-gradient(90deg,${T.burgundy}80,transparent)`, marginBottom:26, borderRadius:2 }}/>
@@ -724,6 +754,7 @@ export default function FagAI() {
                       <div style={{ border:`2px solid ${T.creamBorder}`, borderRadius:11, overflow:"hidden", boxShadow:`0 2px 8px ${T.shadow}` }}>
                         <RichToolbar editorRef={editorRef} T={T}/>
                         <div ref={editorRef} contentEditable suppressContentEditableWarning
+                          onInput={handleEditorChange}
                           style={{ minHeight:380, padding:"18px 20px", fontSize:14.5, fontFamily:"'Lora',serif", color:T.text, background:T.white, lineHeight:1.8 }}
                         />
                       </div>
