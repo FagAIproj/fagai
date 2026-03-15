@@ -79,9 +79,9 @@ function ChatPreview() {
   ];
 
   return (
-    <div style={{ background: L.bgCard, borderRadius: 20, border: `1px solid ${L.border}`, overflow: "hidden", boxShadow: `0 32px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(99,102,241,0.15)`, position: "relative", zIndex: 1 }}>
+    <div style={{ height: "100%", display: "flex", flexDirection: "column", background: "#0d0e14", overflow: "hidden" }}>
       {/* Chrome bar */}
-      <div style={{ height: 44, background: "#0a0b10", borderBottom: `1px solid ${L.border}`, display: "flex", alignItems: "center", padding: "0 16px", gap: 14 }}>
+      <div style={{ height: 44, background: "#0a0b10", borderBottom: `1px solid ${L.border}`, display: "flex", alignItems: "center", padding: "0 16px", gap: 14, flexShrink: 0 }}>
         <div style={{ display: "flex", gap: 6 }}>
           {["#ff5f57", "#febc2e", "#28c840"].map((c, i) => <div key={i} style={{ width: 10, height: 10, borderRadius: "50%", background: c }} />)}
         </div>
@@ -96,37 +96,39 @@ function ChatPreview() {
         </div>
       </div>
 
-      {/* Messages */}
-      <div style={{ padding: "24px 24px 20px", display: "flex", flexDirection: "column", gap: 18 }}>
+      {/* Messages — flex: 1 so it fills remaining space */}
+      <div style={{ flex: 1, padding: "28px 28px 0", display: "flex", flexDirection: "column", gap: 22, overflowY: "auto" }}>
         {messages.map((m, i) => (
           <div key={i} style={{ display: "flex", gap: 10, justifyContent: m.role === "user" ? "flex-end" : "flex-start", alignItems: "flex-start" }}>
             {m.role === "assistant" && (
-              <div style={{ width: 28, height: 28, borderRadius: 8, background: L.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, flexShrink: 0 }}>🎓</div>
+              <div style={{ width: 32, height: 32, borderRadius: 9, background: L.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>🎓</div>
             )}
-            <div style={{ maxWidth: "78%", background: m.role === "user" ? "#1e1f2e" : "transparent", border: m.role === "user" ? `1px solid #2e3050` : "none", borderRadius: m.role === "user" ? "14px 14px 3px 14px" : 0, padding: m.role === "user" ? "9px 14px" : "2px 0", fontSize: 13.5, color: L.text, lineHeight: 1.75, fontFamily: 'var(--font-body)' }}>
+            <div style={{ maxWidth: "78%", background: m.role === "user" ? "#1e1f2e" : "transparent", border: m.role === "user" ? `1px solid #2e3050` : "none", borderRadius: m.role === "user" ? "14px 14px 3px 14px" : 0, padding: m.role === "user" ? "10px 16px" : "2px 0", fontSize: 14, color: L.text, lineHeight: 1.78, fontFamily: 'var(--font-body)' }}>
               {m.role === "assistant" ? (
-                <div style={{ lineHeight: 1.75 }}>
+                <div style={{ lineHeight: 1.78 }}>
                   <span>En andengradsligning er en ligning med formen </span>
-                  <code style={{ background: "#1a1b2e", padding: "1px 6px", borderRadius: 4, fontSize: "0.88em", color: "#a78bfa", fontFamily: "monospace" }}>ax² + bx + c = 0</code>
+                  <code style={{ background: "#1a1b2e", padding: "1px 6px", borderRadius: 4, fontSize: "0.87em", color: "#a78bfa", fontFamily: "monospace" }}>ax² + bx + c = 0</code>
                   <br /><br />
                   <span>Lad os starte med diskriminanten: </span>
-                  <code style={{ background: "#1a1b2e", padding: "1px 6px", borderRadius: 4, fontSize: "0.88em", color: "#a78bfa", fontFamily: "monospace" }}>D = b² − 4ac</code>
+                  <code style={{ background: "#1a1b2e", padding: "1px 6px", borderRadius: 4, fontSize: "0.87em", color: "#a78bfa", fontFamily: "monospace" }}>D = b² − 4ac</code>
                   <br /><br />
                   <span style={{ color: "#818cf8" }}>Hvilke værdier har du for a, b og c i din opgave?</span>
                 </div>
               ) : m.text}
             </div>
             {m.role === "user" && (
-              <div style={{ width: 28, height: 28, borderRadius: 8, background: L.bgCard, border: `1px solid ${L.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: L.textMid, flexShrink: 0, fontWeight: 700 }}>E</div>
+              <div style={{ width: 32, height: 32, borderRadius: 9, background: DS.bgElevated, border: `1px solid ${L.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: L.textMid, flexShrink: 0, fontWeight: 700 }}>E</div>
             )}
           </div>
         ))}
+      </div>
 
-        {/* Input preview */}
-        <div style={{ marginTop: 8, background: "#0a0b10", borderRadius: 10, border: `1px solid ${L.borderHover}`, padding: "11px 14px", display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ flex: 1, fontSize: 13.5, color: L.textMuted, fontFamily: 'var(--font-body)' }}>Stil et spørgsmål…</span>
-          <div style={{ width: 30, height: 30, borderRadius: 8, background: L.gradient, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
+      {/* Input bar — pinned to bottom */}
+      <div style={{ padding: "16px 20px 20px", flexShrink: 0 }}>
+        <div style={{ background: "#0a0b10", borderRadius: 12, border: `1px solid ${L.borderHover}`, padding: "12px 16px", display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ flex: 1, fontSize: 14, color: L.textMuted, fontFamily: 'var(--font-body)' }}>Stil et spørgsmål…</span>
+          <div style={{ width: 32, height: 32, borderRadius: 9, background: L.gradient, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
           </div>
         </div>
       </div>
@@ -241,7 +243,7 @@ export default function LandingPage() {
         <div style={{ position: "relative", zIndex: 3 }}>
           <ContainerScroll
             titleComponent={
-              <div style={{ paddingTop: 60 }}>
+              <div style={{ paddingTop: 80 }}>
                 {/* Badge */}
                 <div style={{ display: "inline-flex", alignItems: "center", gap: 7, background: L.accentSoft, border: `1px solid rgba(99,102,241,0.25)`, borderRadius: 9999, padding: "5px 14px", marginBottom: 28, animation: "fadeIn 0.7s ease both" }}>
                   <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e", animation: "pulse 2s ease infinite" }} />
@@ -263,7 +265,7 @@ export default function LandingPage() {
                 </p>
 
                 {/* CTA Buttons */}
-                <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", animation: "fadeUp 0.7s ease 0.26s both" }}>
+                <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", animation: "fadeUp 0.7s ease 0.26s both", paddingBottom: 56 }}>
                   <GradientButton size="lg" onClick={() => openAuth("register")}>
                     Start gratis →
                   </GradientButton>

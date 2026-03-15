@@ -43,7 +43,7 @@ function Card({ rotate, scale, children }) {
         maxWidth: 960,
         marginLeft:  "auto",
         marginRight: "auto",
-        marginTop:   -48,
+        marginTop:   isMobile ? 48 : 64,
         height:      isMobile ? 380 : 560,
         width:       "100%",
         // Card outer frame — matches FagAI design system
