@@ -4,61 +4,9 @@ import { useAuth } from "./useAuth.jsx";
 import { useNotes } from "./useNotes.jsx";
 import { useConversations, groupByDate } from "./useConversations.jsx";
 import AuthModal from "./AuthModal.jsx";
+import { DS, globalCSS } from "./styles/tokens.js";
 
-// ─── THEMES ──────────────────────────────────────────────────────────────────
-const THEMES = {
-  desert: {
-    name: "Desert Dusk", emoji: "🏜️",
-    burgundy:     "#492109", burgundyMid: "#4a1616", burgundyLight: "#da9887",
-    gold: "#e7d2b2", goldDark: "#c9a96e", goldDeep: "#a07840",
-    cream: "#ede5da", creamDark: "#c7b294", creamBorder: "#693815",
-    text: "#101d2c", textMid: "#3a1f0d", textLight: "#7a4f38",
-    white: "#fff8f0",
-    shadow: "rgba(73,33,9,0.12)", shadowDeep: "rgba(73,33,9,0.24)",
-    navActive: "#492109", navText: "#e7d2b2",
-  },
-  classic: {
-    name: "Burgundy Gold", emoji: "🍷",
-    burgundy:     "#5c1e0f", burgundyMid: "#7a2a17", burgundyLight: "#9e3a22",
-    gold: "#f1e194", goldDark: "#d4c55a", goldDeep: "#b8a93a",
-    cream: "#faf6ee", creamDark: "#f2ead8", creamBorder: "#d4b896",
-    text: "#2c1810", textMid: "#6b4438", textLight: "#9e7060",
-    white: "#ffffff",
-    shadow: "rgba(92,30,15,0.10)", shadowDeep: "rgba(92,30,15,0.22)",
-    navActive: "#5c1e0f", navText: "#f1e194",
-  },
-  ocean: {
-    name: "Deep Ocean", emoji: "🌊",
-    burgundy:     "#0c2d48", burgundyMid: "#145374", burgundyLight: "#1a6fa3",
-    gold: "#cce8f4", goldDark: "#5bb8e0", goldDeep: "#2196c4",
-    cream: "#f0f7fb", creamDark: "#d6eaf5", creamBorder: "#a8d4ec",
-    text: "#0a1929", textMid: "#1e4060", textLight: "#4a7899",
-    white: "#ffffff",
-    shadow: "rgba(12,45,72,0.10)", shadowDeep: "rgba(12,45,72,0.22)",
-    navActive: "#0c2d48", navText: "#cce8f4",
-  },
-  forest: {
-    name: "Moss Forest", emoji: "🌲",
-    burgundy:     "#1a3a2a", burgundyMid: "#24503a", burgundyLight: "#2d6b4a",
-    gold: "#d4e9c4", goldDark: "#8fc473", goldDeep: "#5a9944",
-    cream: "#f2f7ee", creamDark: "#ddecd4", creamBorder: "#a8cc90",
-    text: "#0f1f18", textMid: "#2a4535", textLight: "#527a60",
-    white: "#ffffff",
-    shadow: "rgba(26,58,42,0.10)", shadowDeep: "rgba(26,58,42,0.22)",
-    navActive: "#1a3a2a", navText: "#d4e9c4",
-  },
-  slate: {
-    name: "Midnight Slate", emoji: "🌙",
-    burgundy:     "#1a1d2e", burgundyMid: "#252840", burgundyLight: "#373b5c",
-    gold: "#e2d9f3", goldDark: "#a78bdb", goldDeep: "#7c5cbf",
-    cream: "#f5f4f9", creamDark: "#e8e5f2", creamBorder: "#c5bce0",
-    text: "#0d0f1a", textMid: "#3a3d5c", textLight: "#6b6e96",
-    white: "#ffffff",
-    shadow: "rgba(26,29,46,0.10)", shadowDeep: "rgba(26,29,46,0.24)",
-    navActive: "#1a1d2e", navText: "#e2d9f3",
-  },
-};
-
+// ─── Constants ────────────────────────────────────────────────────────────────
 const SYSTEM_PROMPT = `Du er FagAI – en venlig og klog læringsassistent for danske skoleelever. 
 Dit mål er at hjælpe elever med at LÆRE selv – ikke at lave opgaverne for dem.
 
@@ -73,234 +21,654 @@ REGLER:
 8. Brug punktlister, kodeblokke og overskrifter når det giver mening.`;
 
 const SUBJECTS = [
-  { id:"math",    label:"Matematik",     icon:"∑",   accent:"#c84b2f" },
-  { id:"danish",  label:"Dansk",         icon:"Æ",   accent:"#8b2fc9" },
-  { id:"english", label:"Engelsk",       icon:"En",  accent:"#1a7a5e" },
-  { id:"coding",  label:"Programmering", icon:"</>", accent:"#1e5fa8" },
-  { id:"science", label:"Naturfag",      icon:"⚗",   accent:"#2e7d32" },
-  { id:"history", label:"Historie",      icon:"📜",  accent:"#b5651d" },
-  { id:"geo",     label:"Geografi",      icon:"🌍",  accent:"#0077a8" },
-  { id:"social",  label:"Samfundsfag",   icon:"⚖",   accent:"#6a1b9a" },
+  { id:"math",    label:"Matematik",     icon:"∑",    color:"#f97316" },
+  { id:"danish",  label:"Dansk",         icon:"Æ",    color:"#a855f7" },
+  { id:"english", label:"Engelsk",       icon:"En",   color:"#10b981" },
+  { id:"coding",  label:"Programmering", icon:"</>",  color:"#3b82f6" },
+  { id:"science", label:"Naturfag",      icon:"⚗",    color:"#06b6d4" },
+  { id:"history", label:"Historie",      icon:"📜",   color:"#d97706" },
+  { id:"geo",     label:"Geografi",      icon:"🌍",   color:"#0ea5e9" },
+  { id:"social",  label:"Samfundsfag",   icon:"⚖",    color:"#8b5cf6" },
 ];
 
+const QUICK_STARTERS = [
+  { label: "Forklar hvordan et essay opbygges", subject: "danish" },
+  { label: "Hvad er en andengradsligning?",     subject: "math" },
+  { label: "Hjælp mig med at forstå fotosyntese", subject: "science" },
+  { label: "Forklar den kolde krig kort",       subject: "history" },
+  { label: "Hvad er en for-løkke i Python?",    subject: "coding" },
+  { label: "Forklar forskellen på der/there/their", subject: "english" },
+];
 
 const sub = (id) => SUBJECTS.find(s => s.id === id) || SUBJECTS[0];
 
-// ─── Markdown renderer ────────────────────────────────────────────────────────
-function inlineMd(text, T) {
-  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
-  return parts.map((p, i) => {
-    if (p.startsWith("**") && p.endsWith("**"))
-      return <strong key={i} style={{ fontWeight:700, color:T.text }}>{p.slice(2,-2)}</strong>;
-    if (p.startsWith("`") && p.endsWith("`"))
-      return <code key={i} style={{ background:T.creamDark, border:`1px solid ${T.creamBorder}`, borderRadius:4, padding:"1px 6px", fontSize:"0.87em", fontFamily:"'JetBrains Mono',monospace", color:T.burgundy }}>{p.slice(1,-1)}</code>;
-    return p;
-  });
-}
-
-function renderMd(text, T) {
+// ─── Markdown Renderer ────────────────────────────────────────────────────────
+function renderMarkdown(text) {
   const lines = text.split("\n");
-  const out = []; let inCode = false, codeLines = [], i = 0;
+  const out = [];
+  let inCode = false, codeLang = "", codeLines = [], i = 0;
+
   while (i < lines.length) {
     const line = lines[i];
+
     if (line.startsWith("```")) {
-      if (!inCode) { inCode = true; codeLines = []; }
-      else {
-        out.push(<pre key={"c"+i} style={{ background:"#12100e", border:`1px solid ${T.creamBorder}55`, borderRadius:12, padding:"14px 18px", overflowX:"auto", margin:"10px 0", fontSize:12.5, lineHeight:1.75, color:T.gold, fontFamily:"'JetBrains Mono',monospace", boxShadow:"inset 0 2px 10px rgba(0,0,0,0.3)" }}><code>{codeLines.join("\n")}</code></pre>);
-        inCode = false; codeLines = [];
+      if (!inCode) {
+        inCode = true;
+        codeLang = line.slice(3).trim();
+        codeLines = [];
+      } else {
+        out.push(
+          <div key={"c" + i} style={{ position: "relative", margin: "12px 0" }}>
+            {codeLang && (
+              <div style={{ position: "absolute", top: 8, right: 12, fontSize: 11, color: DS.textMuted, fontFamily: 'var(--font-mono)', letterSpacing: "0.5px", textTransform: "uppercase" }}>
+                {codeLang}
+              </div>
+            )}
+            <pre style={{ background: "#0d0d0f", border: `1px solid ${DS.border}`, borderRadius: DS.radius, padding: "14px 16px", overflowX: "auto", fontSize: 13, lineHeight: 1.8, color: "#c4b5fd", fontFamily: 'var(--font-mono)', margin: 0 }}>
+              <code>{codeLines.join("\n")}</code>
+            </pre>
+          </div>
+        );
+        inCode = false; codeLang = ""; codeLines = [];
       }
       i++; continue;
     }
     if (inCode) { codeLines.push(line); i++; continue; }
-    if (line.startsWith("### ")) { out.push(<h4 key={i} style={{ fontSize:12.5, fontWeight:700, color:T.burgundy, margin:"10px 0 3px", textTransform:"uppercase", letterSpacing:"0.6px", fontFamily:"'DM Sans',sans-serif" }}>{line.slice(4)}</h4>); i++; continue; }
-    if (line.startsWith("## "))  { out.push(<h3 key={i} style={{ fontSize:15, fontWeight:700, color:T.text, margin:"12px 0 4px", fontFamily:"'Lora',serif" }}>{line.slice(3)}</h3>); i++; continue; }
-    if (line.startsWith("# "))   { out.push(<h2 key={i} style={{ fontSize:18, fontWeight:700, color:T.text, margin:"14px 0 5px", fontFamily:"'Lora',serif" }}>{line.slice(2)}</h2>); i++; continue; }
+
+    if (line.startsWith("### ")) {
+      out.push(<h4 key={i} style={{ fontSize: 12, fontWeight: 600, color: DS.textMuted, textTransform: "uppercase", letterSpacing: "0.6px", margin: "14px 0 5px", fontFamily: 'var(--font-body)' }}>{line.slice(4)}</h4>);
+      i++; continue;
+    }
+    if (line.startsWith("## ")) {
+      out.push(<h3 key={i} style={{ fontSize: 16, fontWeight: 700, color: DS.text, margin: "14px 0 5px" }}>{line.slice(3)}</h3>);
+      i++; continue;
+    }
+    if (line.startsWith("# ")) {
+      out.push(<h2 key={i} style={{ fontSize: 19, fontWeight: 700, color: DS.text, margin: "16px 0 6px" }}>{line.slice(2)}</h2>);
+      i++; continue;
+    }
+
     if (line.match(/^[-*] /)) {
       const items = [];
-      while (i < lines.length && lines[i].match(/^[-*] /)) { items.push(<li key={i} style={{ marginBottom:4 }}>{inlineMd(lines[i].slice(2), T)}</li>); i++; }
-      out.push(<ul key={"ul"+i} style={{ paddingLeft:20, margin:"6px 0", lineHeight:1.8, color:T.text }}>{items}</ul>); continue;
+      while (i < lines.length && lines[i].match(/^[-*] /)) {
+        items.push(<li key={i} style={{ marginBottom: 4, paddingLeft: 2 }}>{inlineMarkdown(lines[i].slice(2))}</li>);
+        i++;
+      }
+      out.push(<ul key={"ul" + i} style={{ paddingLeft: 20, margin: "8px 0", color: DS.text, lineHeight: 1.8 }}>{items}</ul>);
+      continue;
     }
+
     if (line.match(/^\d+\. /)) {
       const items = [];
-      while (i < lines.length && lines[i].match(/^\d+\. /)) { items.push(<li key={i} style={{ marginBottom:4 }}>{inlineMd(lines[i].replace(/^\d+\. /,""), T)}</li>); i++; }
-      out.push(<ol key={"ol"+i} style={{ paddingLeft:20, margin:"6px 0", lineHeight:1.8, color:T.text }}>{items}</ol>); continue;
+      while (i < lines.length && lines[i].match(/^\d+\. /)) {
+        items.push(<li key={i} style={{ marginBottom: 4 }}>{inlineMarkdown(lines[i].replace(/^\d+\. /, ""))}</li>);
+        i++;
+      }
+      out.push(<ol key={"ol" + i} style={{ paddingLeft: 20, margin: "8px 0", color: DS.text, lineHeight: 1.8 }}>{items}</ol>);
+      continue;
     }
-    if (line === "") { out.push(<div key={i} style={{ height:7 }}/>); i++; continue; }
-    out.push(<p key={i} style={{ margin:"3px 0", lineHeight:1.8, color:T.text }}>{inlineMd(line, T)}</p>);
+
+    if (line === "") { out.push(<div key={i} style={{ height: 6 }} />); i++; continue; }
+
+    out.push(
+      <p key={i} style={{ margin: "3px 0", lineHeight: 1.82, color: DS.text, fontSize: 14.5 }}>
+        {inlineMarkdown(line)}
+      </p>
+    );
     i++;
   }
   return out;
 }
 
-// ─── Rich Text Toolbar ────────────────────────────────────────────────────────
-function RichToolbar({ editorRef, T }) {
-  const [activeStates, setActiveStates] = useState({});
+function inlineMarkdown(text) {
+  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*)/g);
+  return parts.map((p, i) => {
+    if (p.startsWith("**") && p.endsWith("**"))
+      return <strong key={i} style={{ fontWeight: 700, color: DS.text }}>{p.slice(2, -2)}</strong>;
+    if (p.startsWith("`") && p.endsWith("`"))
+      return <code key={i} style={{ background: DS.bgElevated, border: `1px solid ${DS.border}`, borderRadius: 5, padding: "1px 6px", fontSize: "0.85em", fontFamily: 'var(--font-mono)', color: "#a78bfa" }}>{p.slice(1, -1)}</code>;
+    if (p.startsWith("*") && p.endsWith("*"))
+      return <em key={i} style={{ fontStyle: "italic", color: DS.textMid }}>{p.slice(1, -1)}</em>;
+    return p;
+  });
+}
 
-  useEffect(() => {
-    const update = () => {
-      setActiveStates({
-        bold:                document.queryCommandState("bold"),
-        italic:              document.queryCommandState("italic"),
-        underline:           document.queryCommandState("underline"),
-        insertUnorderedList: document.queryCommandState("insertUnorderedList"),
-        insertOrderedList:   document.queryCommandState("insertOrderedList"),
-      });
-    };
-    document.addEventListener("selectionchange", update);
-    document.addEventListener("keyup", update);
-    document.addEventListener("mouseup", update);
-    return () => {
-      document.removeEventListener("selectionchange", update);
-      document.removeEventListener("keyup", update);
-      document.removeEventListener("mouseup", update);
-    };
-  }, []);
+// ─── UI Primitives ────────────────────────────────────────────────────────────
+function Button({ children, onClick, variant = "primary", size = "md", disabled, style: extraStyle, ...props }) {
+  const [hover, setHover] = useState(false);
 
-  const exec = (cmd, val) => {
-    editorRef.current?.focus();
-    document.execCommand(cmd, false, val ?? null);
-    setTimeout(() => {
-      setActiveStates(prev => ({ ...prev, [cmd]: document.queryCommandState(cmd) }));
-    }, 0);
+  const base = {
+    display: "inline-flex", alignItems: "center", justifyContent: "center",
+    gap: 7, border: "none", borderRadius: DS.radiusSm, cursor: disabled ? "not-allowed" : "pointer",
+    fontFamily: 'var(--font-body)', fontWeight: 600, transition: "all 0.14s ease",
+    opacity: disabled ? 0.45 : 1,
+    outline: "none",
   };
 
-  const tools = [
-    { label: "B",  cmd: "bold",                title:"Fed (Ctrl+B)",    style:{ fontWeight:800, fontSize:14, fontFamily:"'Lora',serif" } },
-    { label: "I",  cmd: "italic",              title:"Kursiv (Ctrl+I)", style:{ fontStyle:"italic", fontSize:14 } },
-    { label: "U",  cmd: "underline",           title:"Understreg",      style:{ textDecoration:"underline", fontSize:14 } },
-    { label: "•",  cmd: "insertUnorderedList", title:"Punktliste",      style:{ fontSize:17, lineHeight:1 } },
-    { label: "1.", cmd: "insertOrderedList",   title:"Nummerliste",     style:{ fontSize:13, fontWeight:600 } },
+  const sizes = {
+    sm: { fontSize: 12.5, padding: "6px 12px", height: 30 },
+    md: { fontSize: 13.5, padding: "8px 16px", height: 36 },
+    lg: { fontSize: 15,   padding: "11px 22px", height: 44 },
+  };
+
+  const variants = {
+    primary: {
+      background: hover ? DS.accentHover : DS.accent,
+      color: "#fff",
+      boxShadow: hover ? `0 0 20px ${DS.accentGlow}` : "none",
+    },
+    ghost: {
+      background: hover ? DS.bgHover : "transparent",
+      color: hover ? DS.text : DS.textMid,
+      border: `1px solid ${hover ? DS.borderMid : "transparent"}`,
+    },
+    outline: {
+      background: hover ? DS.bgHover : "transparent",
+      color: DS.text,
+      border: `1px solid ${hover ? DS.borderHover : DS.border}`,
+    },
+    danger: {
+      background: hover ? "rgba(248,113,113,0.15)" : "transparent",
+      color: DS.error,
+      border: `1px solid ${hover ? "rgba(248,113,113,0.4)" : "transparent"}`,
+    },
+  };
+
+  return (
+    <button
+      onClick={disabled ? undefined : onClick}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{ ...base, ...sizes[size], ...variants[variant], ...extraStyle }}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+}
+
+function Tooltip({ children, label }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div style={{ position: "relative", display: "inline-flex" }}
+      onMouseEnter={() => setShow(true)}
+      onMouseLeave={() => setShow(false)}>
+      {children}
+      {show && (
+        <div style={{ position: "absolute", bottom: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)", background: DS.bgElevated, border: `1px solid ${DS.border}`, borderRadius: 6, padding: "4px 10px", fontSize: 12, color: DS.textMid, whiteSpace: "nowrap", pointerEvents: "none", zIndex: 99, animation: "fadeIn 0.12s ease" }}>
+          {label}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Sidebar ──────────────────────────────────────────────────────────────────
+function Sidebar({ open, onClose, conversations, activeConvId, loadingConvs, onSelect, onCreate, onDelete, user, onLogout, navigate }) {
+  const [hoveredId, setHoveredId] = useState(null);
+
+  return (
+    <>
+      {/* Mobile overlay */}
+      {open && (
+        <div onClick={onClose} style={{ display: "none", position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 39 }}
+          className="mobile-overlay" />
+      )}
+
+      <aside style={{
+        width: 260, minWidth: 260,
+        background: DS.sidebar,
+        borderRight: `1px solid ${DS.sidebarBorder}`,
+        display: "flex", flexDirection: "column",
+        height: "100%", overflow: "hidden",
+        transition: "transform 0.22s ease",
+        flexShrink: 0,
+      }}>
+        {/* Brand */}
+        <div style={{ padding: "16px 16px 12px", borderBottom: `1px solid ${DS.sidebarBorder}`, flexShrink: 0 }}>
+          <button onClick={() => navigate("/")} style={{ display: "flex", alignItems: "center", gap: 10, background: "none", border: "none", cursor: "pointer", padding: 0, width: "100%", marginBottom: 12 }}>
+            <div style={{ width: 30, height: 30, borderRadius: 8, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0, boxShadow: "0 2px 10px rgba(99,102,241,0.4)" }}>🎓</div>
+            <span style={{ fontSize: 15, fontWeight: 700, color: DS.text, fontFamily: 'var(--font-body)', letterSpacing: "-0.2px" }}>FagAI</span>
+          </button>
+
+          <button onClick={onCreate}
+            style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "9px 12px", borderRadius: DS.radiusSm, background: DS.bgElevated, border: `1px solid ${DS.border}`, color: DS.text, fontSize: 13.5, fontWeight: 500, cursor: "pointer", fontFamily: 'var(--font-body)', transition: "all 0.13s" }}
+            onMouseEnter={e => { e.currentTarget.style.background = DS.bgHover; e.currentTarget.style.borderColor = DS.borderMid; }}
+            onMouseLeave={e => { e.currentTarget.style.background = DS.bgElevated; e.currentTarget.style.borderColor = DS.border; }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={DS.textMid} strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+            Ny samtale
+          </button>
+        </div>
+
+        {/* Conversations */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "8px 8px" }}>
+          {loadingConvs && (
+            <div style={{ padding: "32px 16px", textAlign: "center" }}>
+              {[1, 2, 3, 4].map(i => (
+                <div key={i} style={{ height: 34, background: DS.bgElevated, borderRadius: DS.radiusSm, marginBottom: 4, opacity: 1 - i * 0.15, animation: "pulse 1.8s ease infinite" }} />
+              ))}
+            </div>
+          )}
+          {!loadingConvs && conversations.length === 0 && (
+            <div style={{ padding: "40px 16px", textAlign: "center" }}>
+              <div style={{ fontSize: 28, marginBottom: 10, opacity: 0.3 }}>💬</div>
+              <p style={{ fontSize: 13, color: DS.textMuted, lineHeight: 1.6, fontFamily: 'var(--font-body)' }}>Ingen samtaler endnu.<br />Start ved at stille et spørgsmål.</p>
+            </div>
+          )}
+          {!loadingConvs && Object.entries(groupByDate(conversations)).map(([label, convs]) => (
+            <div key={label} style={{ marginBottom: 6 }}>
+              <div style={{ fontSize: 10.5, fontWeight: 600, color: DS.textMuted, letterSpacing: "0.7px", textTransform: "uppercase", padding: "8px 8px 4px", fontFamily: 'var(--font-body)' }}>
+                {label}
+              </div>
+              {convs.map(conv => {
+                const isActive = conv.id === activeConvId;
+                const isHovered = hoveredId === conv.id;
+                return (
+                  <div key={conv.id}
+                    style={{ display: "flex", alignItems: "center", gap: 3, marginBottom: 1 }}
+                    onMouseEnter={() => setHoveredId(conv.id)}
+                    onMouseLeave={() => setHoveredId(null)}>
+                    <button onClick={() => onSelect(conv.id)}
+                      style={{ flex: 1, padding: "7px 10px", borderRadius: DS.radiusSm, background: isActive ? DS.bgElevated : isHovered ? "rgba(255,255,255,0.04)" : "transparent", border: `1px solid ${isActive ? DS.borderMid : "transparent"}`, color: isActive ? DS.text : DS.textMid, fontSize: 13, fontWeight: isActive ? 500 : 400, textAlign: "left", cursor: "pointer", fontFamily: 'var(--font-body)', lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", transition: "all 0.1s" }}>
+                      {conv.title}
+                    </button>
+                    {isHovered && (
+                      <button onClick={e => { e.stopPropagation(); onDelete(conv.id); }}
+                        style={{ width: 26, height: 26, borderRadius: 6, background: "transparent", border: "none", color: DS.textMuted, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "all 0.1s" }}
+                        onMouseEnter={e => { e.currentTarget.style.background = "rgba(248,113,113,0.12)"; e.currentTarget.style.color = DS.error; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = DS.textMuted; }}>
+                        ×
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+
+        {/* User section */}
+        <div style={{ borderTop: `1px solid ${DS.sidebarBorder}`, padding: "12px 12px", flexShrink: 0 }}>
+          {user ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#fff", flexShrink: 0 }}>
+                {(user.name || user.email || "?")[0].toUpperCase()}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 500, color: DS.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.name || user.email}</div>
+                <div style={{ fontSize: 11, color: DS.textMuted }}>{user.email}</div>
+              </div>
+              <button onClick={onLogout} title="Log ud"
+                style={{ width: 28, height: 28, borderRadius: 7, background: "transparent", border: "none", color: DS.textMuted, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "all 0.1s" }}
+                onMouseEnter={e => { e.currentTarget.style.background = "rgba(248,113,113,0.1)"; e.currentTarget.style.color = DS.error; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = DS.textMuted; }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
+              </button>
+            </div>
+          ) : (
+            <button onClick={() => { }}
+              style={{ width: "100%", padding: "9px 12px", borderRadius: DS.radiusSm, background: DS.accentSoft, border: `1px solid rgba(99,102,241,0.25)`, color: "#818cf8", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: 'var(--font-body)', transition: "all 0.13s" }}>
+              Log ind for at gemme historik
+            </button>
+          )}
+        </div>
+      </aside>
+    </>
+  );
+}
+
+// ─── Chat Message ─────────────────────────────────────────────────────────────
+function Message({ msg, isLast, user }) {
+  const isUser = msg.role === "user";
+
+  return (
+    <div className="fade-up" style={{ display: "flex", gap: 12, justifyContent: isUser ? "flex-end" : "flex-start", alignItems: "flex-start", maxWidth: 720, margin: "0 auto", width: "100%", padding: "0 16px" }}>
+      {!isUser && (
+        <div style={{ width: 32, height: 32, borderRadius: 9, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0, marginTop: 2, boxShadow: "0 2px 12px rgba(99,102,241,0.35)" }}>🎓</div>
+      )}
+
+      <div style={{
+        maxWidth: isUser ? "72%" : "100%",
+        background: isUser ? DS.userBg : "transparent",
+        border: isUser ? `1px solid ${DS.userBorder}` : "none",
+        borderRadius: isUser ? "16px 16px 4px 16px" : 0,
+        padding: isUser ? "11px 16px" : "4px 0",
+        fontSize: 14.5,
+        color: DS.text,
+        lineHeight: 1.78,
+        fontFamily: 'var(--font-body)',
+      }}>
+        {isUser ? (
+          <span style={{ color: DS.text }}>{msg.content}</span>
+        ) : (
+          <div className="prose">{renderMarkdown(msg.content)}</div>
+        )}
+      </div>
+
+      {isUser && (
+        <div style={{ width: 32, height: 32, borderRadius: 9, background: DS.bgElevated, border: `1px solid ${DS.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: DS.textMid, flexShrink: 0, marginTop: 2, fontWeight: 700 }}>
+          {user ? (user.name || user.email || "?")[0].toUpperCase() : "U"}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Typing Indicator ─────────────────────────────────────────────────────────
+function TypingIndicator() {
+  return (
+    <div className="fade-in" style={{ display: "flex", gap: 12, alignItems: "flex-start", maxWidth: 720, margin: "0 auto", width: "100%", padding: "0 16px" }}>
+      <div style={{ width: 32, height: 32, borderRadius: 9, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0, boxShadow: "0 2px 12px rgba(99,102,241,0.35)" }}>🎓</div>
+      <div style={{ padding: "12px 16px", display: "flex", gap: 5, alignItems: "center" }}>
+        {[0, 0.22, 0.44].map((d, i) => (
+          <div key={i} style={{ width: 7, height: 7, borderRadius: "50%", background: DS.textMuted, animation: `blink 1.4s ease ${d}s infinite` }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Empty State / Welcome ────────────────────────────────────────────────────
+function WelcomeScreen({ onQuickStart, activeSubject }) {
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 24px", gap: 40, maxWidth: 680, margin: "0 auto", width: "100%" }}>
+      <div style={{ textAlign: "center" }}>
+        <div style={{ width: 60, height: 60, borderRadius: 18, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, margin: "0 auto 20px", boxShadow: "0 8px 32px rgba(99,102,241,0.35)" }}>🎓</div>
+        <h1 style={{ fontSize: 28, fontWeight: 700, color: DS.text, fontFamily: 'var(--font-display)', marginBottom: 10, letterSpacing: "-0.5px" }}>
+          {activeSubject ? `Lad os tale om ${sub(activeSubject).label}` : "Hvad vil du lære i dag?"}
+        </h1>
+        <p style={{ fontSize: 15, color: DS.textMid, lineHeight: 1.65, maxWidth: 420, margin: "0 auto" }}>
+          Stil mig et spørgsmål — jeg hjælper dig med at forstå, ikke med at snyde.
+        </p>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, width: "100%" }}>
+        {QUICK_STARTERS.map((q, i) => {
+          const s = sub(q.subject);
+          return (
+            <button key={i} onClick={() => onQuickStart(q)}
+              style={{ padding: "12px 14px", borderRadius: DS.radius, background: DS.bgSurface, border: `1px solid ${DS.border}`, color: DS.textMid, fontSize: 13.5, cursor: "pointer", textAlign: "left", fontFamily: 'var(--font-body)', transition: "all 0.14s", display: "flex", alignItems: "flex-start", gap: 10, lineHeight: 1.4 }}
+              onMouseEnter={e => { e.currentTarget.style.background = DS.bgElevated; e.currentTarget.style.borderColor = DS.borderMid; e.currentTarget.style.color = DS.text; }}
+              onMouseLeave={e => { e.currentTarget.style.background = DS.bgSurface; e.currentTarget.style.borderColor = DS.border; e.currentTarget.style.color = DS.textMid; }}>
+              <span style={{ fontSize: 14, opacity: 0.7, flexShrink: 0 }}>{s.icon}</span>
+              <span>{q.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── Chat Input ───────────────────────────────────────────────────────────────
+function ChatInput({ value, onChange, onSend, onKeyDown, loading, activeSubject, onClearSubject, textareaRef }) {
+  const [focused, setFocused] = useState(false);
+  const s = activeSubject ? sub(activeSubject) : null;
+
+  return (
+    <div style={{ padding: "16px 24px 20px", background: DS.bg, borderTop: `1px solid ${DS.border}`, flexShrink: 0 }}>
+      <div style={{ maxWidth: 720, margin: "0 auto" }}>
+        {s && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "3px 10px", borderRadius: DS.radiusFull, background: `${s.color}18`, border: `1px solid ${s.color}35`, color: s.color, fontSize: 12, fontWeight: 500 }}>
+              <span>{s.icon}</span> {s.label}
+              <button onClick={onClearSubject} style={{ background: "none", border: "none", color: s.color, opacity: 0.6, fontSize: 13, cursor: "pointer", lineHeight: 1, padding: 0, marginLeft: 2 }}>×</button>
+            </div>
+          </div>
+        )}
+        <div style={{ position: "relative", background: DS.bgSurface, border: `1px solid ${focused ? DS.borderHover : DS.border}`, borderRadius: 14, transition: "border-color 0.18s, box-shadow 0.18s", boxShadow: focused ? `0 0 0 3px rgba(99,102,241,0.12)` : DS.shadowSm }}>
+          <textarea
+            ref={textareaRef}
+            value={value}
+            onChange={onChange}
+            onKeyDown={onKeyDown}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            placeholder={s ? `Spørg om ${s.label.toLowerCase()}…` : "Stil et spørgsmål…"}
+            rows={1}
+            style={{ width: "100%", background: "transparent", border: "none", outline: "none", padding: "14px 56px 14px 16px", fontSize: 15, color: DS.text, fontFamily: 'var(--font-body)', lineHeight: 1.6, maxHeight: 160, overflowY: "auto", display: "block" }}
+          />
+          <button onClick={onSend}
+            disabled={!value.trim() || loading}
+            style={{ position: "absolute", right: 10, bottom: 10, width: 36, height: 36, borderRadius: DS.radiusSm, background: value.trim() && !loading ? DS.accent : DS.bgElevated, border: "none", cursor: value.trim() && !loading ? "pointer" : "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "all 0.14s", boxShadow: value.trim() && !loading ? `0 2px 12px ${DS.accentGlow}` : "none" }}>
+            {loading ? (
+              <div style={{ width: 14, height: 14, border: `2px solid ${DS.textMuted}`, borderTopColor: DS.text, borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={value.trim() ? "#fff" : DS.textMuted} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
+              </svg>
+            )}
+          </button>
+        </div>
+        <p style={{ fontSize: 11.5, color: DS.textMuted, textAlign: "center", marginTop: 8, fontFamily: 'var(--font-body)' }}>
+          FagAI hjælper dig med at lære — ikke med at snyde · Enter for send, Shift+Enter for ny linje
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Notes View ───────────────────────────────────────────────────────────────
+function NotesView({ notes, notesLoading, notesSaving, onSelect, onCreate, onDelete, onUpdate, activeNote, setActiveNote }) {
+  const [noteSearch, setNoteSearch] = useState("");
+  const [showNew, setShowNew] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [newSubject, setNewSubject] = useState("math");
+  const editorRef = useRef(null);
+  const newEditorRef = useRef(null);
+  const [editing, setEditing] = useState(false);
+
+  const filtered = notes.filter(n =>
+    n.title.toLowerCase().includes(noteSearch.toLowerCase()) ||
+    (n.content || "").replace(/<[^>]+>/g, "").toLowerCase().includes(noteSearch.toLowerCase())
+  );
+
+  const stripHtml = (html) => (html || "").replace(/<[^>]+>/g, "");
+
+  const saveNew = async () => {
+    if (!newTitle.trim()) return;
+    const body = newEditorRef.current?.innerHTML || "";
+    const note = await onCreate({ title: newTitle, subject: newSubject, body });
+    if (note) { setShowNew(false); setNewTitle(""); setActiveNote(note); }
+  };
+
+  return (
+    <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
+      {/* Notes list */}
+      <div style={{ width: 280, minWidth: 280, background: DS.bgSurface, borderRight: `1px solid ${DS.border}`, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <div style={{ padding: "16px 14px 12px", borderBottom: `1px solid ${DS.border}`, flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: DS.text, fontFamily: 'var(--font-body)', display: "flex", alignItems: "center", gap: 8 }}>
+              Noter
+              {notesSaving && <span style={{ fontSize: 11, color: DS.textMuted, fontWeight: 400 }}>· gemmer…</span>}
+            </span>
+            <button onClick={() => { setShowNew(true); setActiveNote(null); setEditing(false); }}
+              style={{ width: 28, height: 28, borderRadius: 7, background: DS.accent, border: "none", color: "#fff", fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.13s" }}
+              onMouseEnter={e => e.currentTarget.style.background = DS.accentHover}
+              onMouseLeave={e => e.currentTarget.style.background = DS.accent}>+</button>
+          </div>
+          <div style={{ position: "relative" }}>
+            <svg style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)" }} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={DS.textMuted} strokeWidth="2"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+            <input value={noteSearch} onChange={e => setNoteSearch(e.target.value)} placeholder="Søg noter…"
+              style={{ width: "100%", height: 34, paddingLeft: 30, background: DS.bgElevated, border: `1px solid ${DS.border}`, borderRadius: DS.radiusSm, fontSize: 13, color: DS.text, fontFamily: 'var(--font-body)', outline: "none" }} />
+          </div>
+        </div>
+
+        <div style={{ flex: 1, overflowY: "auto", padding: "8px" }}>
+          {notesLoading && <div style={{ padding: "24px", textAlign: "center", color: DS.textMuted, fontSize: 13 }}>Indlæser…</div>}
+          {!notesLoading && filtered.length === 0 && (
+            <div style={{ padding: "40px 16px", textAlign: "center" }}>
+              <div style={{ fontSize: 28, marginBottom: 8, opacity: 0.3 }}>📝</div>
+              <p style={{ fontSize: 13, color: DS.textMuted }}>{noteSearch ? "Ingen resultater" : "Opret din første note →"}</p>
+            </div>
+          )}
+          {filtered.map(note => {
+            const s = sub(note.subject);
+            const isActive = activeNote?.id === note.id;
+            return (
+              <button key={note.id} onClick={() => { onSelect(note); setShowNew(false); setEditing(false); }}
+                style={{ width: "100%", padding: "11px 12px", borderRadius: DS.radiusSm, background: isActive ? DS.bgElevated : "transparent", border: `1px solid ${isActive ? DS.border : "transparent"}`, cursor: "pointer", textAlign: "left", marginBottom: 2, transition: "all 0.12s" }}
+                onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }}
+                onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}>
+                <div style={{ fontSize: 13.5, fontWeight: 500, color: DS.text, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{note.title}</div>
+                <div style={{ fontSize: 12, color: DS.textMuted, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", lineHeight: 1.45 }}>{stripHtml(note.content).slice(0, 80)}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 7 }}>
+                  <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: DS.radiusFull, background: `${s.color}15`, color: s.color, fontWeight: 500 }}>{s.icon} {s.label}</span>
+                  <span style={{ fontSize: 11, color: DS.textMuted }}>{note.date}</span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Note content */}
+      <div style={{ flex: 1, background: DS.bg, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        {showNew ? (
+          <div style={{ flex: 1, overflowY: "auto", padding: "40px 56px" }}>
+            <div style={{ maxWidth: 680, margin: "0 auto" }}>
+              <h2 style={{ fontSize: 22, fontWeight: 700, color: DS.text, marginBottom: 24, fontFamily: 'var(--font-display)' }}>Ny note</h2>
+              <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
+                <input value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="Titel…"
+                  style={{ flex: 1, height: 42, background: DS.bgSurface, border: `1px solid ${DS.border}`, borderRadius: DS.radiusSm, padding: "0 14px", fontSize: 14.5, color: DS.text, fontFamily: 'var(--font-body)', outline: "none" }} />
+                <select value={newSubject} onChange={e => setNewSubject(e.target.value)}
+                  style={{ height: 42, background: DS.bgSurface, border: `1px solid ${DS.border}`, borderRadius: DS.radiusSm, padding: "0 12px", fontSize: 13, color: DS.text, fontFamily: 'var(--font-body)' }}>
+                  {SUBJECTS.map(s => <option key={s.id} value={s.id}>{s.icon} {s.label}</option>)}
+                </select>
+              </div>
+              <div ref={newEditorRef} contentEditable suppressContentEditableWarning
+                style={{ minHeight: 240, background: DS.bgSurface, border: `1px solid ${DS.border}`, borderRadius: DS.radius, padding: "14px 16px", fontSize: 14.5, color: DS.text, fontFamily: 'var(--font-body)', lineHeight: 1.8, marginBottom: 16, outline: "none" }} />
+              <div style={{ display: "flex", gap: 8 }}>
+                <Button onClick={saveNew}>Gem note</Button>
+                <Button variant="outline" onClick={() => setShowNew(false)}>Annuller</Button>
+              </div>
+            </div>
+          </div>
+        ) : activeNote ? (
+          <div style={{ flex: 1, overflowY: "auto", padding: "40px 56px" }}>
+            <div style={{ maxWidth: 680, margin: "0 auto" }}>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24 }}>
+                <div>
+                  <h1 style={{ fontSize: 24, fontWeight: 700, color: DS.text, fontFamily: 'var(--font-display)', letterSpacing: "-0.3px", marginBottom: 8 }}>{activeNote.title}</h1>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <span style={{ fontSize: 12, padding: "2px 10px", borderRadius: DS.radiusFull, background: `${sub(activeNote.subject).color}15`, color: sub(activeNote.subject).color, fontWeight: 500 }}>{sub(activeNote.subject).icon} {sub(activeNote.subject).label}</span>
+                    <span style={{ fontSize: 12, color: DS.textMuted }}>{activeNote.date}</span>
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  {editing ? (
+                    <Button size="sm" onClick={() => { const html = editorRef.current?.innerHTML || ""; onUpdate(activeNote.id, { content: html }); setActiveNote(p => ({ ...p, content: html })); setEditing(false); }}>Færdig ✓</Button>
+                  ) : (
+                    <Button size="sm" variant="outline" onClick={() => { setEditing(true); setTimeout(() => { if (editorRef.current) { editorRef.current.innerHTML = activeNote.content || ""; editorRef.current.focus(); } }, 40); }}>Rediger</Button>
+                  )}
+                  <Button size="sm" variant="danger" onClick={async () => { await onDelete(activeNote.id); setActiveNote(null); }}>Slet</Button>
+                </div>
+              </div>
+              <div style={{ height: 1, background: DS.border, marginBottom: 28 }} />
+              {editing ? (
+                <div ref={editorRef} contentEditable suppressContentEditableWarning
+                  onInput={() => { if (!editorRef.current) return; onUpdate(activeNote.id, { content: editorRef.current.innerHTML }); }}
+                  style={{ minHeight: 320, background: DS.bgSurface, border: `1px solid ${DS.border}`, borderRadius: DS.radius, padding: "16px 18px", fontSize: 14.5, color: DS.text, fontFamily: 'var(--font-body)', lineHeight: 1.8, outline: "none" }} />
+              ) : (
+                <div className="prose" style={{ fontSize: 14.5, lineHeight: 1.82 }} dangerouslySetInnerHTML={{ __html: activeNote.content }} />
+              )}
+            </div>
+          </div>
+        ) : (
+          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ width: 64, height: 64, borderRadius: 18, background: DS.bgSurface, border: `1px solid ${DS.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, margin: "0 auto 16px" }}>📝</div>
+              <p style={{ fontSize: 14, color: DS.textMuted }}>Vælg en note, eller opret en ny</p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Subjects View ────────────────────────────────────────────────────────────
+function SubjectsView({ activeSubject, onSelect, onQuickStart }) {
+  return (
+    <div style={{ flex: 1, overflowY: "auto", padding: "40px 40px" }}>
+      <div style={{ maxWidth: 880, margin: "0 auto" }}>
+        <div style={{ marginBottom: 32 }}>
+          <h1 style={{ fontSize: 28, fontWeight: 700, color: DS.text, fontFamily: 'var(--font-display)', letterSpacing: "-0.4px", marginBottom: 8 }}>Vælg fag</h1>
+          <p style={{ fontSize: 14, color: DS.textMid }}>Start en fokuseret chat-session for et bestemt fag</p>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 40 }}>
+          {SUBJECTS.map(s => {
+            const isActive = activeSubject === s.id;
+            return (
+              <button key={s.id} onClick={() => onSelect(s.id)}
+                style={{ background: isActive ? DS.bgElevated : DS.bgSurface, borderRadius: DS.radiusLg, padding: "22px 20px", border: `1px solid ${isActive ? DS.accent + "50" : DS.border}`, cursor: "pointer", textAlign: "left", transition: "all 0.16s", boxShadow: isActive ? `0 0 0 1px ${DS.accent}30, 0 8px 24px rgba(0,0,0,0.3)` : "none" }}
+                onMouseEnter={e => { if (!isActive) { e.currentTarget.style.borderColor = DS.borderMid; e.currentTarget.style.background = DS.bgElevated; } }}
+                onMouseLeave={e => { if (!isActive) { e.currentTarget.style.borderColor = DS.border; e.currentTarget.style.background = DS.bgSurface; } }}>
+                <div style={{ width: 44, height: 44, borderRadius: 12, background: `${s.color}15`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: s.color, marginBottom: 12, border: `1px solid ${s.color}25` }}>{s.icon}</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: DS.text, marginBottom: 3 }}>{s.label}</div>
+                <div style={{ fontSize: 12, color: DS.textMuted }}>→ Åbn chat</div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Quick starters */}
+        <div style={{ background: DS.bgSurface, borderRadius: DS.radiusLg, padding: "24px", border: `1px solid ${DS.border}` }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 9, background: DS.bgElevated, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>💡</div>
+            <h2 style={{ fontSize: 15, fontWeight: 600, color: DS.text }}>Idéer til at komme i gang</h2>
+          </div>
+          <p style={{ fontSize: 12.5, color: DS.textMuted, marginBottom: 16, marginLeft: 42 }}>Klik for at sende direkte til chat</p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            {QUICK_STARTERS.map((q, i) => {
+              const s = sub(q.subject);
+              return (
+                <button key={i} onClick={() => onQuickStart(q)}
+                  style={{ padding: "12px 14px", background: DS.bgElevated, borderRadius: DS.radiusSm, border: `1px solid ${DS.border}`, color: DS.textMid, fontSize: 13.5, cursor: "pointer", textAlign: "left", fontFamily: 'var(--font-body)', display: "flex", alignItems: "center", gap: 10, transition: "all 0.13s" }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = DS.borderMid; e.currentTarget.style.color = DS.text; e.currentTarget.style.background = DS.bgHover; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = DS.border; e.currentTarget.style.color = DS.textMid; e.currentTarget.style.background = DS.bgElevated; }}>
+                  <span style={{ opacity: 0.65 }}>{s.icon}</span>{q.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Top Navigation ───────────────────────────────────────────────────────────
+function TopNav({ view, setView, user, onAuthOpen, onLogout, navigate }) {
+  const navItems = [
+    { id: "chat", label: "Chat", icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg> },
+    { id: "notes", label: "Noter", icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg> },
+    { id: "subjects", label: "Fag", icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" /></svg> },
   ];
 
   return (
-    <div style={{ display:"flex", alignItems:"center", gap:2, padding:"6px 10px", background:T.creamDark, borderBottom:`2px solid ${T.creamBorder}`, borderRadius:"11px 11px 0 0" }}>
-      {tools.map((t, i) => {
-        const on = !!activeStates[t.cmd];
-        return (
-          <button key={i}
-            onMouseDown={e => { e.preventDefault(); exec(t.cmd); }}
-            title={t.title}
-            style={{
-              width:32, height:30, borderRadius:7, cursor:"pointer",
-              display:"flex", alignItems:"center", justifyContent:"center",
-              fontFamily:"'Lora',serif", transition:"all 0.13s",
-              background: on ? T.burgundy : "transparent",
-              color:      on ? T.gold     : T.text,
-              border:     on ? `1.5px solid ${T.burgundyLight}` : `1.5px solid transparent`,
-              boxShadow:  on ? `inset 0 1px 3px rgba(0,0,0,0.2)` : "none",
-              ...t.style,
-              ...(on ? { color: T.gold } : {}),
-            }}
-            onMouseEnter={e => { if (!on) { e.currentTarget.style.background=T.white; e.currentTarget.style.borderColor=T.creamBorder; }}}
-            onMouseLeave={e => { if (!on) { e.currentTarget.style.background="transparent"; e.currentTarget.style.borderColor="transparent"; }}}>
-            {t.label}
+    <header style={{ height: 52, background: DS.bgSurface, borderBottom: `1px solid ${DS.border}`, display: "flex", alignItems: "center", padding: "0 20px", gap: 16, flexShrink: 0, zIndex: 20 }}>
+      {/* Nav tabs */}
+      <div style={{ display: "flex", gap: 2 }}>
+        {navItems.map(n => (
+          <button key={n.id} onClick={() => setView(n.id)}
+            style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 12px", borderRadius: DS.radiusSm, fontWeight: 500, fontSize: 13.5, color: view === n.id ? DS.text : DS.textMid, background: view === n.id ? DS.bgElevated : "transparent", border: `1px solid ${view === n.id ? DS.border : "transparent"}`, cursor: "pointer", fontFamily: 'var(--font-body)', transition: "all 0.12s" }}>
+            <span style={{ opacity: view === n.id ? 1 : 0.6 }}>{n.icon}</span>
+            {n.label}
           </button>
-        );
-      })}
-      <div style={{ width:1, height:20, background:T.creamBorder, margin:"0 6px" }}/>
-      {["H2","H3"].map((h,i) => (
-        <button key={"h"+i}
-          onMouseDown={e => { e.preventDefault(); exec("formatBlock", h.toLowerCase()); }}
-          title={`Overskrift ${i+1}`}
-          style={{ height:30, padding:"0 8px", borderRadius:7, border:`1.5px solid transparent`, background:"transparent", cursor:"pointer", color:T.text, fontFamily:"'DM Sans',sans-serif", fontSize:11, fontWeight:700, letterSpacing:"0.3px", transition:"all 0.14s" }}
-          onMouseEnter={e => { e.currentTarget.style.background=T.white; e.currentTarget.style.borderColor=T.creamBorder; }}
-          onMouseLeave={e => { e.currentTarget.style.background="transparent"; e.currentTarget.style.borderColor="transparent"; }}>
-          {h}
-        </button>
-      ))}
-      <div style={{ flex:1 }}/>
-      <span style={{ fontSize:11, color:T.textLight, fontFamily:"'DM Sans',sans-serif", paddingRight:4 }}>Rig teksteditor</span>
-    </div>
-  );
-}
+        ))}
+      </div>
 
-// ─── Theme Switcher ───────────────────────────────────────────────────────────
-function ThemeSwitcher({ current, onChange, T }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-  useEffect(() => {
-    const handler = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
+      <div style={{ flex: 1 }} />
 
-  return (
-    <div ref={ref} style={{ position:"relative" }}>
-      <button onClick={() => setOpen(o => !o)}
-        style={{ display:"flex", alignItems:"center", gap:7, height:36, padding:"0 14px", background:`${T.gold}20`, border:`1.5px solid ${T.gold}45`, borderRadius:9, cursor:"pointer", color:T.gold, fontSize:13, fontFamily:"'DM Sans',sans-serif", fontWeight:600, transition:"all 0.15s" }}>
-        <span style={{ fontSize:15 }}>{THEMES[current].emoji}</span>
-        {THEMES[current].name}
-        <span style={{ fontSize:10, opacity:0.7, marginLeft:2 }}>▾</span>
-      </button>
-      {open && (
-        <div style={{ position:"absolute", top:"calc(100% + 8px)", right:0, background:T.white, borderRadius:14, border:`2px solid ${T.creamBorder}`, boxShadow:`0 12px 40px ${T.shadowDeep}`, overflow:"hidden", minWidth:200, zIndex:100 }}>
-          <div style={{ padding:"8px 12px 6px", fontSize:10, fontWeight:700, color:T.textLight, letterSpacing:"0.8px", textTransform:"uppercase", fontFamily:"'DM Sans',sans-serif", borderBottom:`1px solid ${T.creamBorder}` }}>Vælg tema</div>
-          {Object.entries(THEMES).map(([key, theme]) => (
-            <button key={key} onClick={() => { onChange(key); setOpen(false); }}
-              style={{ display:"flex", alignItems:"center", gap:10, width:"100%", padding:"10px 14px", background:current===key ? `${T.creamDark}` : "transparent", border:"none", cursor:"pointer", textAlign:"left", borderBottom:`1px solid ${T.creamBorder}20`, transition:"background 0.12s" }}
-              onMouseEnter={e => { if (current!==key) e.currentTarget.style.background=T.cream; }}
-              onMouseLeave={e => { if (current!==key) e.currentTarget.style.background="transparent"; }}>
-              <div style={{ display:"flex", gap:3, flexShrink:0 }}>
-                <div style={{ width:14, height:14, borderRadius:"50%", background:theme.burgundy, border:"1.5px solid rgba(0,0,0,0.12)" }}/>
-                <div style={{ width:14, height:14, borderRadius:"50%", background:theme.gold, border:"1.5px solid rgba(0,0,0,0.12)" }}/>
-                <div style={{ width:14, height:14, borderRadius:"50%", background:theme.cream, border:"1.5px solid rgba(0,0,0,0.12)" }}/>
-              </div>
-              <div>
-                <div style={{ fontSize:13, fontWeight:600, color:T.text, fontFamily:"'DM Sans',sans-serif" }}>{theme.emoji} {theme.name}</div>
-              </div>
-              {current===key && <span style={{ marginLeft:"auto", color:T.burgundy, fontSize:16 }}>✓</span>}
-            </button>
-          ))}
+      {!user && (
+        <div style={{ display: "flex", gap: 6 }}>
+          <Button variant="ghost" size="sm" onClick={() => onAuthOpen("login")}>Log ind</Button>
+          <Button size="sm" onClick={() => onAuthOpen("register")}>Registrér</Button>
         </div>
       )}
-    </div>
-  );
-}
-
-// ─── User Menu (når logget ind) ───────────────────────────────────────────────
-function UserMenu({ user, onLogout, T }) {
-  const navigate = useNavigate();
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-  useEffect(() => {
-    const handler = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  const initial = (user.name || user.email || "?")[0].toUpperCase();
-
-  return (
-    <div ref={ref} style={{ position: "relative" }}>
-      <button onClick={() => setOpen(o => !o)}
-        style={{ display: "flex", alignItems: "center", gap: 8, height: 36, padding: "0 12px 0 6px", background: `${T.gold}20`, border: `1.5px solid ${T.gold}45`, borderRadius: 20, cursor: "pointer", color: T.gold, transition: "all 0.15s" }}>
-        {/* Avatar circle */}
-        <div style={{ width: 26, height: 26, borderRadius: "50%", background: `linear-gradient(135deg,${T.gold},${T.goldDark})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: T.burgundy, fontFamily: "'DM Sans',sans-serif" }}>
-          {initial}
-        </div>
-        <span style={{ fontSize: 13, fontWeight: 600, fontFamily: "'DM Sans',sans-serif", maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {user.name || user.email}
-        </span>
-        <span style={{ fontSize: 10, opacity: 0.6 }}>▾</span>
-      </button>
-
-      {open && (
-        <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, background: T.white, borderRadius: 14, border: `2px solid ${T.creamBorder}`, boxShadow: `0 12px 40px ${T.shadowDeep}`, overflow: "hidden", minWidth: 200, zIndex: 100 }}>
-          {/* User info */}
-          <div style={{ padding: "14px 16px", borderBottom: `1px solid ${T.creamBorder}`, background: T.creamDark }}>
-            <div style={{ fontWeight: 700, fontSize: 14, color: T.text, fontFamily: "'DM Sans',sans-serif" }}>{user.name || "Bruger"}</div>
-            <div style={{ fontSize: 12, color: T.textLight, fontFamily: "'DM Sans',sans-serif", marginTop: 2 }}>{user.email}</div>
-          </div>
-          {/* Log ud */}
-          <button onClick={() => { setOpen(false); onLogout(); }}
-            style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "12px 16px", background: "transparent", border: "none", cursor: "pointer", color: "#c0392b", fontSize: 13, fontWeight: 600, fontFamily: "'DM Sans',sans-serif", transition: "background 0.12s" }}
-            onMouseEnter={e => e.currentTarget.style.background = "#fff0f0"}
-            onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-            onClick={() => { setOpen(false); onLogout(); navigate("/"); }}>
-          </button>
-        </div>
-      )}
-    </div>
+    </header>
   );
 }
 
@@ -308,638 +676,182 @@ function UserMenu({ user, onLogout, T }) {
 export default function FagAI() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const [themeKey, setThemeKey] = useState("classic");
-  const T = THEMES[themeKey];
 
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authTab, setAuthTab]             = useState("login");
-
-  const apiKey = import.meta.env.VITE_OPENAI_API_KEY || "";
-  const [view, setView]               = useState("chat");
+  const [authTab, setAuthTab] = useState("login");
+  const [view, setView] = useState("chat");
   const [activeSubject, setActiveSubject] = useState(null);
-  const [input, setInput]             = useState("");
-  const [loading, setLoading]         = useState(false);
-  const [activeNote, setActiveNote]   = useState(null);
-  const [editingNote, setEditingNote] = useState(null);
-  const [noteSearch, setNoteSearch]   = useState("");
-  const [showNewNote, setShowNewNote] = useState(false);
-  const [newNote, setNewNote]         = useState({ title:"", subject:"math", content:"" });
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const endRef       = useRef(null);
-  const textareaRef  = useRef(null);
-  const editorRef    = useRef(null);
-  const newEditorRef = useRef(null);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [activeNote, setActiveNote] = useState(null);
 
-  // ── Supabase notes ──────────────────────────────────────────────────────────
-  const {
-    notes,
-    loading: notesLoading,
-    saving:  notesSaving,
-    createNote,
-    debouncedUpdate,
-    deleteNote,
-  } = useNotes(user?.id);
+  const endRef = useRef(null);
+  const textareaRef = useRef(null);
+  const apiKey = import.meta.env.VITE_OPENAI_API_KEY || "";
 
-  // ── Supabase chat history ───────────────────────────────────────────────────
-  const {
-    conversations,
-    activeId:    activeConvId,
-    messages,
-    loadingConvs,
-    loadingMsgs,
-    selectConversation,
-    createConversation,
-    saveMessage,
-    maybeSetTitle,
-    deleteConversation,
-    setMessages,
-  } = useConversations(user?.id);
+  const { notes, loading: notesLoading, saving: notesSaving, createNote, debouncedUpdate, deleteNote } = useNotes(user?.id);
+  const { conversations, activeId: activeConvId, messages, loadingConvs, loadingMsgs, selectConversation, createConversation, saveMessage, maybeSetTitle, deleteConversation, setMessages } = useConversations(user?.id);
 
-  // Welcome message when no conversation is active
-  const displayMessages = messages.length > 0 ? messages : [
-    { role:"assistant", content:"Hej! 👋 Jeg er **FagAI** – din personlige læringsassistent.\n\nVælg en tidligere samtale i sidepanelet, eller stil mig et spørgsmål for at starte en ny.\n\n**Hvad vil du lære om i dag?**" }
-  ];
-
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior:"smooth" }); }, [messages, loading]);
-
-  useEffect(() => {
-    if (editingNote && editorRef.current && activeNote) {
-      if (editorRef.current.innerHTML !== activeNote.content) {
-        editorRef.current.innerHTML = activeNote.content || "";
-      }
-    }
-  }, [editingNote, activeNote?.id]);
-
-  useEffect(() => {
-    if (activeNote) {
-      const updated = notes.find(n => n.id === activeNote.id);
-      if (updated) setActiveNote(updated);
-    }
-  }, [notes]);
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading]);
 
   const sendMessage = async (text) => {
     const t = (text || input).trim();
     if (!t || loading) return;
     setInput("");
-    if (textareaRef.current) textareaRef.current.style.height = "44px";
+    if (textareaRef.current) { textareaRef.current.style.height = "auto"; }
 
-    // Ensure we have an active conversation — create one if needed
     let convId = activeConvId;
-    if (!convId) {
-      convId = await createConversation();
-      if (!convId) return;
-    }
+    if (!convId) { convId = await createConversation(); if (!convId) return; }
 
-    // Check if this is the first real user message (for auto-title)
-    const isFirstMessage = messages.length === 0;
-
-    const userMsg = { role:"user", content:t };
-    const updatedMsgs = [...messages, userMsg];
-    setMessages(updatedMsgs);
+    const isFirst = messages.length === 0;
+    const userMsg = { role: "user", content: t };
+    const updated = [...messages, userMsg];
+    setMessages(updated);
     setLoading(true);
 
-    // Save user message to Supabase
     await saveMessage(convId, "user", t);
-
-    // Auto-title from first message
-    if (isFirstMessage) await maybeSetTitle(convId, t);
+    if (isFirst) await maybeSetTitle(convId, t);
 
     try {
       const res = await fetch("https://api.openai.com/v1/chat/completions", {
-        method:"POST",
-        headers:{ "Content-Type":"application/json", "Authorization":`Bearer ${apiKey}` },
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
         body: JSON.stringify({
-          model:"gpt-4o-mini", max_tokens:1000,
-          messages:[
-            { role:"system", content: SYSTEM_PROMPT + (activeSubject ? `\n\nEleven fokuserer på: ${sub(activeSubject).label}.`:"") },
-            ...updatedMsgs.map(m => ({ role:m.role, content:m.content }))
-          ]
-        })
+          model: "gpt-4o-mini", max_tokens: 1000,
+          messages: [
+            { role: "system", content: SYSTEM_PROMPT + (activeSubject ? `\n\nEleven fokuserer på: ${sub(activeSubject).label}.` : "") },
+            ...updated.map(m => ({ role: m.role, content: m.content })),
+          ],
+        }),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error.message);
       const reply = data.choices?.[0]?.message?.content || "Noget gik galt.";
-      const finalMsgs = [...updatedMsgs, { role:"assistant", content:reply }];
-      setMessages(finalMsgs);
-      // Save AI reply to Supabase
+      const final = [...updated, { role: "assistant", content: reply }];
+      setMessages(final);
       await saveMessage(convId, "assistant", reply);
-    } catch(e) {
-      const errMsg = `❌ **Fejl:** ${e.message}`;
-      setMessages([...updatedMsgs, { role:"assistant", content:errMsg }]);
+    } catch (e) {
+      setMessages([...updated, { role: "assistant", content: `❌ **Fejl:** ${e.message}` }]);
     }
     setLoading(false);
   };
 
-  const startNewChat = async () => {
-    setMessages([]);
-    await createConversation();
+  const handleKey = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
 
-  const handleKey = (e) => { if (e.key==="Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } };
-
-  const filteredNotes = notes.filter(n =>
-    n.title.toLowerCase().includes(noteSearch.toLowerCase()) ||
-    n.content.replace(/<[^>]+>/g,"").toLowerCase().includes(noteSearch.toLowerCase())
-  );
-
-  const saveNewNote = async () => {
-    if (!newNote.title.trim()) return;
-    const body = newEditorRef.current?.innerHTML || "<p></p>";
-    const created = await createNote({ title: newNote.title, subject: newNote.subject, body });
-    if (created) {
-      setNewNote({ title:"", subject:"math", content:"" });
-      setShowNewNote(false);
-      setActiveNote(created);
-      if (newEditorRef.current) newEditorRef.current.innerHTML = "";
-    }
+  const handleTextareaChange = (e) => {
+    setInput(e.target.value);
+    const ta = e.target;
+    ta.style.height = "auto";
+    ta.style.height = Math.min(ta.scrollHeight, 160) + "px";
   };
 
-  const commitEditedNote = () => {
-    if (!activeNote || !editorRef.current) return;
-    const html = editorRef.current.innerHTML;
-    debouncedUpdate(activeNote.id, { content: html });
-    setActiveNote(prev => prev ? { ...prev, content: html } : prev);
-    setEditingNote(null);
+  const handleQuickStart = ({ label, subject }) => {
+    setActiveSubject(subject);
+    setView("chat");
+    setTimeout(() => sendMessage(label), 80);
   };
 
-  const handleEditorChange = () => {
-    if (!activeNote || !editorRef.current) return;
-    const html = editorRef.current.innerHTML;
-    debouncedUpdate(activeNote.id, { content: html });
-  };
-
-  const navItems = [
-    { id:"chat",     label:"Chat",  icon:<IconChat/> },
-    { id:"notes",    label:"Noter", icon:<IconNotes/> },
-    { id:"subjects", label:"Fag",   icon:<IconBook/> },
-  ];
-
-  const stripHtml = (html) => html?.replace(/<[^>]+>/g, "") || "";
-
-  // Åbn auth modal og sæt tab
   const openAuth = (tab) => { setAuthTab(tab); setShowAuthModal(true); };
 
   return (
-    <div style={{ display:"flex",flexDirection:"column",height:"100vh",background:T.cream,fontFamily:"'Lora','Georgia',serif",overflow:"hidden" }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
-        *{box-sizing:border-box;margin:0;padding:0;}
-        ::-webkit-scrollbar{width:5px;}
-        ::-webkit-scrollbar-track{background:transparent;}
-        ::-webkit-scrollbar-thumb{background:${T.creamBorder};border-radius:3px;}
-        ::-webkit-scrollbar-thumb:hover{background:${T.textLight};}
-        @keyframes fadeUp{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
-        @keyframes blink{0%,100%{opacity:1;}50%{opacity:0.12;}}
-        @keyframes spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
-        .anim{animation:fadeUp 0.22s ease;}
-        .nb{border:none;background:none;cursor:pointer;}
-        .npill{transition:all 0.18s ease;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;}
-        .btn{transition:all 0.16s ease;cursor:pointer;font-family:'DM Sans',sans-serif;border:none;}
-        .btn:hover:not(:disabled){filter:brightness(1.07);}
-        .btn:active:not(:disabled){transform:scale(0.96);}
-        .sbchip{transition:all 0.16s ease;cursor:pointer;font-family:'DM Sans',sans-serif;border:none;}
-        .sbchip:hover{filter:brightness(1.06);}
-        .sbchip:active{transform:scale(0.97);}
-        .nr{transition:all 0.13s;cursor:pointer;}
-        .nr:hover{background:${T.creamDark}!important;}
-        .scard{transition:all 0.2s ease;border:none;cursor:pointer;text-align:left;font-family:'DM Sans',sans-serif;}
-        .scard:hover{transform:translateY(-3px);box-shadow:0 14px 36px ${T.shadowDeep}!important;}
-        .scard:active{transform:scale(0.97);}
-        .qb{transition:all 0.15s;border:none;cursor:pointer;text-align:left;font-family:'DM Sans',sans-serif;}
-        .qb:hover{background:${T.creamDark}!important;border-color:${T.goldDark}!important;}
-        textarea:focus,input:focus,select:focus{outline:none;}
-        textarea{resize:none;}
-        .ibox:focus-within{border-color:${T.goldDark}!important;box-shadow:0 0 0 3px ${T.gold}55,0 4px 18px ${T.shadow}!important;}
-        [contenteditable]:focus{outline:none;}
-        [contenteditable] ul{padding-left:22px;margin:6px 0;}
-        [contenteditable] ol{padding-left:22px;margin:6px 0;}
-        [contenteditable] li{margin-bottom:3px;line-height:1.7;}
-        [contenteditable] h2{font-size:20px;font-weight:700;margin:12px 0 5px;color:${T.text};}
-        [contenteditable] h3{font-size:16px;font-weight:700;margin:10px 0 4px;color:${T.text};}
-        [contenteditable] p{margin:2px 0;line-height:1.75;}
-        [contenteditable] code{background:${T.creamDark};border:1px solid ${T.creamBorder};border-radius:4px;padding:1px 5px;font-family:'JetBrains Mono',monospace;font-size:0.88em;}
-        .note-view-content ul{padding-left:22px;margin:6px 0;}
-        .note-view-content ol{padding-left:22px;margin:6px 0;}
-        .note-view-content li{margin-bottom:4px;line-height:1.75;}
-        .note-view-content h2{font-size:20px;font-weight:700;margin:14px 0 5px;color:${T.text};}
-        .note-view-content h3{font-size:16px;font-weight:700;margin:11px 0 4px;color:${T.textMid};}
-        .note-view-content p{margin:3px 0;line-height:1.8;}
-        .note-view-content strong{font-weight:700;}
-        .note-view-content code{background:${T.creamDark};border:1px solid ${T.creamBorder};border-radius:4px;padding:1px 5px;font-family:'JetBrains Mono',monospace;font-size:0.88em;color:${T.burgundy};}
-        .brand-btn:hover { opacity: 0.85; }
-        .brand-btn:active { transform: scale(0.97); }
-        .brand-btn { transition: all 0.15s ease; }
-      `}</style>
+    <div style={{ display: "flex", height: "100vh", background: DS.bg, overflow: "hidden" }}>
+      <style>{globalCSS}</style>
 
-      {/* ─── TOPBAR ─── */}
-      <header style={{ height:58, background:T.burgundy, display:"flex", alignItems:"center", padding:"0 24px", gap:20, flexShrink:0, boxShadow:`0 3px 20px ${T.shadowDeep}`, zIndex:30, borderBottom:`2.5px solid ${T.creamBorder}` }}>
+      {/* Sidebar — only on chat view */}
+      {view === "chat" && (
+        <Sidebar
+          open={true}
+          conversations={conversations}
+          activeConvId={activeConvId}
+          loadingConvs={loadingConvs}
+          onSelect={selectConversation}
+          onCreate={async () => { setMessages([]); await createConversation(); }}
+          onDelete={deleteConversation}
+          user={user}
+          onLogout={logout}
+          navigate={navigate}
+        />
+      )}
 
-        {/* Brand — klikbart → tilbage til landing */}
-        <button
-          className="brand-btn nb"
-          onClick={() => navigate("/")}
-          title="Gå til forsiden"
-          style={{ display:"flex", alignItems:"center", gap:12, flexShrink:0, minWidth:168, cursor:"pointer" }}>
-          <div style={{ width:38, height:38, borderRadius:11, background:`linear-gradient(135deg,${T.gold},${T.goldDark})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:19, boxShadow:"0 2px 12px rgba(0,0,0,0.35)", border:`1.5px solid ${T.goldDeep}` }}>🎓</div>
-          <div>
-            <div style={{ fontWeight:700, fontSize:19, color:T.gold, letterSpacing:"0.3px", fontFamily:"'Lora',serif", lineHeight:1 }}>FagAI</div>
-            <div style={{ fontSize:9.5, color:`${T.gold}75`, letterSpacing:"1.2px", fontFamily:"'DM Sans',sans-serif", textTransform:"uppercase" }}>Læringsassistent</div>
-          </div>
-        </button>
+      {/* Main content */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
+        <TopNav view={view} setView={setView} user={user} onAuthOpen={openAuth} onLogout={logout} navigate={navigate} />
 
-        {/* Nav tabs */}
-        <div style={{ display:"flex", gap:3, background:"rgba(0,0,0,0.22)", borderRadius:12, padding:4, border:`1.5px solid ${T.gold}25` }}>
-          {navItems.map(n => (
-            <button key={n.id} className="npill" onClick={() => setView(n.id)}
-              style={{ display:"flex", alignItems:"center", gap:7, padding:"6px 20px", borderRadius:9, fontWeight:600, fontSize:13.5, color:view===n.id?T.burgundy:`${T.gold}cc`, background:view===n.id?T.gold:"transparent", boxShadow:view===n.id?`0 2px 10px rgba(0,0,0,0.28)`:"none" }}>
-              <span style={{ opacity:view===n.id?1:0.65 }}>{n.icon}</span>{n.label}
-            </button>
-          ))}
-        </div>
-
-        {activeSubject && view==="chat" && (
-          <div style={{ display:"flex", alignItems:"center", gap:7, background:`${T.gold}18`, color:T.gold, borderRadius:20, padding:"5px 14px 5px 10px", fontSize:13, fontWeight:600, border:`1.5px solid ${T.gold}40`, fontFamily:"'DM Sans',sans-serif", flexShrink:0 }}>
-            <span style={{ fontSize:16 }}>{sub(activeSubject).icon}</span>{sub(activeSubject).label}
-            <button onClick={() => setActiveSubject(null)} className="nb" style={{ color:T.gold, opacity:0.5, fontSize:14, lineHeight:1, marginLeft:2 }}>✕</button>
-          </div>
-        )}
-
-        <div style={{ flex:1 }}/>
-
-        {/* Theme switcher */}
-        <ThemeSwitcher current={themeKey} onChange={setThemeKey} T={T} />
-
-        {/* ── Auth-sektion ── */}
-        {user ? (
-          /* Logget ind → vis brugermenu */
-          <UserMenu user={user} onLogout={logout} T={T} />
-        ) : (
-          /* Ikke logget ind → Log ind + Registrér */
-          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-            <button className="btn"
-              onClick={() => openAuth("login")}
-              style={{ height:36, padding:"0 18px", background:"transparent", color:T.gold, border:`1.5px solid ${T.gold}55`, borderRadius:9, fontSize:13, fontWeight:600, fontFamily:"'DM Sans',sans-serif" }}>
-              Log ind
-            </button>
-            <button className="btn"
-              onClick={() => openAuth("register")}
-              style={{ height:36, padding:"0 18px", background:`linear-gradient(135deg,${T.gold},${T.goldDark})`, color:T.burgundy, border:"none", borderRadius:9, fontSize:13, fontWeight:700, fontFamily:"'DM Sans',sans-serif", boxShadow:`0 2px 10px rgba(0,0,0,0.25)` }}>
-              Registrér
-            </button>
-          </div>
-        )}
-
-
-      </header>
-
-      {/* ─── BODY ─── */}
-      <div style={{ flex:1, overflow:"hidden", display:"flex" }}>
-
-        {/* ══════════════ CHAT ══════════════ */}
-        {view==="chat" && (
-          <div style={{ display:"flex", flex:1, overflow:"hidden" }}>
-            {/* ── Sidebar: Conversation History ── */}
-            {sidebarOpen && (
-              <div style={{ width:260, minWidth:260, background:T.burgundyMid, borderRight:`2.5px solid ${T.creamBorder}55`, display:"flex", flexDirection:"column", overflow:"hidden", boxShadow:`3px 0 14px ${T.shadowDeep}` }}>
-
-                {/* New Chat button */}
-                <div style={{ padding:"14px 12px 10px", borderBottom:`1px solid ${T.gold}15`, flexShrink:0 }}>
-                  <button
-                    onClick={startNewChat}
-                    style={{ display:"flex", alignItems:"center", gap:9, width:"100%", padding:"10px 14px", borderRadius:11, background:`${T.gold}18`, border:`1.5px solid ${T.gold}40`, color:T.gold, fontSize:13.5, fontWeight:700, cursor:"pointer", fontFamily:"'DM Sans',sans-serif", transition:"all 0.15s" }}
-                    onMouseEnter={e=>{ e.currentTarget.style.background=`${T.gold}30`; }}
-                    onMouseLeave={e=>{ e.currentTarget.style.background=`${T.gold}18`; }}>
-                    <span style={{ fontSize:18, lineHeight:1 }}>✏️</span>
-                    Ny samtale
-                  </button>
-                </div>
-
-                {/* Conversation list */}
-                <div style={{ flex:1, overflowY:"auto", padding:"10px 8px" }}>
-                  {loadingConvs && (
-                    <div style={{ textAlign:"center", color:`${T.gold}50`, fontSize:12, padding:"24px 0", fontFamily:"'DM Sans',sans-serif" }}>Indlæser…</div>
-                  )}
-                  {!loadingConvs && conversations.length === 0 && (
-                    <div style={{ textAlign:"center", color:`${T.gold}45`, fontSize:12, padding:"28px 12px", lineHeight:1.6, fontFamily:"'DM Sans',sans-serif" }}>
-                      Ingen samtaler endnu.<br/>Start ved at stille et spørgsmål.
-                    </div>
-                  )}
-                  {!loadingConvs && Object.entries(groupByDate(conversations)).map(([label, convs]) => (
-                    <div key={label}>
-                      {/* Date group label */}
-                      <div style={{ fontSize:10, fontWeight:700, color:`${T.gold}55`, letterSpacing:"0.9px", textTransform:"uppercase", padding:"10px 8px 5px", fontFamily:"'DM Sans',sans-serif" }}>
-                        {label}
-                      </div>
-                      {convs.map(conv => {
-                        const isActive = conv.id === activeConvId;
-                        return (
-                          <div key={conv.id}
-                            style={{ display:"flex", alignItems:"center", gap:4, marginBottom:2 }}>
-                            <button
-                              onClick={() => selectConversation(conv.id)}
-                              style={{ flex:1, padding:"8px 10px", borderRadius:9, background:isActive?`${T.gold}22`:"transparent", border:isActive?`1.5px solid ${T.gold}45`:"1.5px solid transparent", color:isActive?T.gold:`${T.gold}75`, fontSize:12.5, fontWeight:isActive?600:400, textAlign:"left", cursor:"pointer", fontFamily:"'DM Sans',sans-serif", lineHeight:1.4, transition:"all 0.13s", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}
-                              onMouseEnter={e=>{ if(!isActive){ e.currentTarget.style.background=`rgba(255,255,255,0.07)`; e.currentTarget.style.color=T.gold; }}}
-                              onMouseLeave={e=>{ if(!isActive){ e.currentTarget.style.background="transparent"; e.currentTarget.style.color=`${T.gold}75`; }}}>
-                              {conv.title}
-                            </button>
-                            {/* Delete button — shows on hover */}
-                            <button
-                              onClick={(e) => { e.stopPropagation(); deleteConversation(conv.id); }}
-                              title="Slet samtale"
-                              style={{ width:24, height:24, borderRadius:6, background:"transparent", border:"none", color:`${T.gold}35`, fontSize:13, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all 0.13s" }}
-                              onMouseEnter={e=>{ e.currentTarget.style.color="#e74c3c"; e.currentTarget.style.background="rgba(231,76,60,0.12)"; }}
-                              onMouseLeave={e=>{ e.currentTarget.style.color=`${T.gold}35`; e.currentTarget.style.background="transparent"; }}>
-                              ×
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ))}
-                </div>
-
-                {/* Fag-fokus — kept compact at bottom */}
-                <div style={{ borderTop:`1px solid ${T.gold}15`, padding:"10px 12px" }}>
-                  <div style={{ fontSize:9.5, fontWeight:700, color:`${T.gold}55`, letterSpacing:"1px", textTransform:"uppercase", marginBottom:7, fontFamily:"'DM Sans',sans-serif" }}>Fag-fokus</div>
-                  <div style={{ display:"flex", flexWrap:"wrap", gap:5 }}>
-                    {SUBJECTS.map(s => {
-                      const active = activeSubject === s.id;
-                      return (
-                        <button key={s.id}
-                          onClick={() => setActiveSubject(active ? null : s.id)}
-                          title={s.label}
-                          style={{ padding:"4px 9px", borderRadius:7, fontSize:12, background:active?`${T.gold}28`:"transparent", color:active?T.gold:`${T.gold}65`, border:active?`1.5px solid ${T.gold}55`:`1.5px solid rgba(255,255,255,0.1)`, cursor:"pointer", fontFamily:"'DM Sans',sans-serif", transition:"all 0.13s" }}>
-                          {s.icon} {s.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <button className="nb" onClick={()=>setSidebarOpen(false)}
-                  style={{ padding:"10px 16px", borderTop:`1px solid ${T.gold}15`, color:`${T.gold}40`, fontSize:12, textAlign:"left", display:"flex", alignItems:"center", gap:6, fontFamily:"'DM Sans',sans-serif" }}>
-                  <span style={{ fontSize:15 }}>‹</span> Skjul panel
-                </button>
-              </div>
-            )}
-            {!sidebarOpen && (
-              <button className="nb" onClick={()=>setSidebarOpen(true)}
-                style={{ position:"absolute", left:0, top:"50%", transform:"translateY(-50%)", zIndex:20, background:T.burgundy, border:`1.5px solid ${T.gold}35`, borderLeft:"none", borderRadius:"0 9px 9px 0", padding:"14px 6px", color:T.gold, fontSize:16, boxShadow:`3px 0 12px ${T.shadow}` }}>›</button>
-            )}
-
-            {/* Chat main */}
-            <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden", background:T.cream }}>
+        {/* ── Chat ── */}
+        {view === "chat" && (
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            <div style={{ flex: 1, overflowY: "auto", padding: "28px 0", display: "flex", flexDirection: "column", gap: 20 }}>
               {loadingMsgs ? (
-                <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center" }}>
-                  <div style={{ textAlign:"center" }}>
-                    <div style={{ fontSize:28, marginBottom:10, opacity:0.5 }}>💬</div>
-                    <div style={{ fontSize:13, color:T.textLight, fontFamily:"'DM Sans',sans-serif" }}>Indlæser samtale…</div>
+                <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "60px" }}>
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: DS.textMuted, margin: "0 auto 12px", animation: "pulse 1.4s ease infinite" }} />
+                    <p style={{ fontSize: 13, color: DS.textMuted }}>Indlæser samtale…</p>
                   </div>
                 </div>
+              ) : messages.length === 0 ? (
+                <WelcomeScreen onQuickStart={handleQuickStart} activeSubject={activeSubject} />
               ) : (
-              <div style={{ flex:1, overflowY:"auto", padding:"36px 52px", display:"flex", flexDirection:"column", gap:26 }}>
-                {displayMessages.map((msg,i) => (
-                  <div key={i} className="anim" style={{ display:"flex", gap:14, justifyContent:msg.role==="user"?"flex-end":"flex-start", alignItems:"flex-start" }}>
-                    {msg.role==="assistant" && (
-                      <div style={{ width:40, height:40, borderRadius:13, background:`linear-gradient(135deg,${T.burgundy},${T.burgundyLight})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:19, flexShrink:0, boxShadow:`0 3px 14px ${T.shadowDeep}`, border:`2px solid ${T.gold}50`, marginTop:1 }}>🎓</div>
-                    )}
-                    <div style={{ maxWidth:"62%", background:msg.role==="user"?`linear-gradient(135deg,${T.burgundy},${T.burgundyMid})`:T.white, color:msg.role==="user"?T.gold:T.text, borderRadius:msg.role==="user"?"20px 20px 5px 20px":"5px 20px 20px 20px", padding:"14px 20px", fontSize:14.5, boxShadow:msg.role==="user"?`0 5px 18px ${T.shadowDeep}`:`0 3px 14px ${T.shadow}`, border:msg.role==="user"?`1.5px solid ${T.gold}35`:`2px solid ${T.creamBorder}`, lineHeight:1.78, fontFamily:msg.role==="user"?"'DM Sans',sans-serif":"'Lora',serif" }}>
-                      {msg.role==="assistant" ? renderMd(msg.content, T) : msg.content}
-                    </div>
-                    {msg.role==="user" && (
-                      <div style={{ width:40, height:40, borderRadius:13, background:`linear-gradient(135deg,${T.gold},${T.goldDark})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:19, flexShrink:0, border:`2px solid ${T.goldDeep}`, marginTop:1 }}>
-                        {user ? (user.name || user.email || "?")[0].toUpperCase() : "👤"}
-                      </div>
-                    )}
-                  </div>
-                ))}
-                {loading && (
-                  <div className="anim" style={{ display:"flex", gap:14, alignItems:"flex-start" }}>
-                    <div style={{ width:40, height:40, borderRadius:13, background:`linear-gradient(135deg,${T.burgundy},${T.burgundyLight})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:19, flexShrink:0, border:`2px solid ${T.gold}50` }}>🎓</div>
-                    <div style={{ background:T.white, borderRadius:"5px 20px 20px 20px", padding:"17px 22px", boxShadow:`0 3px 14px ${T.shadow}`, border:`2px solid ${T.creamBorder}`, display:"flex", gap:7, alignItems:"center" }}>
-                      {[0,0.2,0.4].map((d,i)=><div key={i} style={{ width:9, height:9, borderRadius:"50%", background:T.burgundy, animation:`blink 1.4s ease ${d}s infinite` }}/>)}
-                    </div>
-                  </div>
-                )}
-                <div ref={endRef}/>
-              </div>
+                messages.map((msg, i) => <Message key={i} msg={msg} isLast={i === messages.length - 1} user={user} />)
               )}
-
-              <div style={{ borderTop:`2px solid ${T.creamBorder}`, background:T.creamDark, padding:"18px 52px 22px" }}>
-                <div className="ibox" style={{ display:"flex", alignItems:"flex-end", gap:12, background:T.white, borderRadius:18, border:`2px solid ${T.creamBorder}`, padding:"11px 11px 11px 20px", boxShadow:`0 3px 14px ${T.shadow}`, transition:"border-color 0.2s,box-shadow 0.2s" }}>
-                  {activeSubject && <span style={{ fontSize:20, flexShrink:0, paddingBottom:5, opacity:0.7 }}>{sub(activeSubject).icon}</span>}
-                  <textarea ref={textareaRef} value={input}
-                    onChange={e=>{setInput(e.target.value);e.target.style.height="44px";e.target.style.height=Math.min(e.target.scrollHeight,160)+"px";}}
-                    onKeyDown={handleKey}
-                    placeholder={activeSubject?`Stil et spørgsmål om ${sub(activeSubject).label.toLowerCase()}...`:"Stil et spørgsmål eller beskriv hvad du vil lære..."}
-                    style={{ flex:1, border:"none", background:"transparent", fontSize:15, color:T.text, lineHeight:1.6, height:44, maxHeight:160, overflowY:"auto", fontFamily:"'Lora',serif", paddingTop:4 }}/>
-                  <div style={{ display:"flex", alignItems:"center", gap:9, flexShrink:0 }}>
-                    {input && <button className="nb" onClick={()=>{setInput("");if(textareaRef.current)textareaRef.current.style.height="44px";}} style={{ width:33, height:33, borderRadius:"50%", background:T.creamDark, color:T.textLight, fontSize:15, display:"flex", alignItems:"center", justifyContent:"center", border:`1.5px solid ${T.creamBorder}` }}>✕</button>}
-                    <button className="btn" onClick={()=>sendMessage()} disabled={!input.trim()||loading}
-                      style={{ width:48, height:48, borderRadius:14, background:input.trim()&&!loading?`linear-gradient(135deg,${T.burgundy},${T.burgundyLight})`:T.creamBorder, cursor:input.trim()&&!loading?"pointer":"not-allowed", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:input.trim()&&!loading?`0 5px 16px ${T.shadowDeep}`:"none" }}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={input.trim()&&!loading?T.gold:T.textLight} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                    </button>
-                  </div>
-                </div>
-                <div style={{ textAlign:"center", fontSize:11, color:T.textLight, marginTop:10, fontFamily:"'DM Sans',sans-serif" }}>
-                  FagAI hjælper dig med at lære – ikke med at snyde 🎯 &nbsp;·&nbsp; Shift+Enter for ny linje
-                </div>
-              </div>
+              {loading && <TypingIndicator />}
+              <div ref={endRef} />
             </div>
+
+            <ChatInput
+              value={input}
+              onChange={handleTextareaChange}
+              onSend={sendMessage}
+              onKeyDown={handleKey}
+              loading={loading}
+              activeSubject={activeSubject}
+              onClearSubject={() => setActiveSubject(null)}
+              textareaRef={textareaRef}
+            />
           </div>
         )}
 
-        {/* ══════════════ NOTER ══════════════ */}
-        {view==="notes" && (
-          <div style={{ display:"flex", flex:1, overflow:"hidden" }}>
-            <div style={{ width:298, minWidth:298, background:T.white, borderRight:`2.5px solid ${T.creamBorder}`, display:"flex", flexDirection:"column", overflow:"hidden", boxShadow:`3px 0 10px ${T.shadow}` }}>
-              <div style={{ padding:"16px 16px 12px", borderBottom:`2px solid ${T.creamBorder}`, background:T.creamDark }}>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                    <span style={{ fontWeight:700, fontSize:17, color:T.text, fontFamily:"'Lora',serif" }}>Mine noter</span>
-                    {notesSaving && <span style={{ fontSize:11, color:T.textLight, fontFamily:"'DM Sans',sans-serif", fontStyle:"italic" }}>Gemmer…</span>}
-                    {notesLoading && <span style={{ fontSize:11, color:T.textLight, fontFamily:"'DM Sans',sans-serif" }}>Indlæser…</span>}
-                  </div>
-                  <button className="btn" onClick={()=>{setShowNewNote(true);setActiveNote(null);setEditingNote(null);}}
-                    style={{ width:32, height:32, borderRadius:10, background:T.burgundy, color:T.gold, fontWeight:700, fontSize:20, display:"flex", alignItems:"center", justifyContent:"center", boxShadow:`0 2px 10px ${T.shadowDeep}` }}>+</button>
-                </div>
-                <div style={{ position:"relative" }}>
-                  <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", fontSize:13, color:T.textLight }}>🔍</span>
-                  <input value={noteSearch} onChange={e=>setNoteSearch(e.target.value)} placeholder="Søg noter..."
-                    style={{ width:"100%", paddingLeft:30, height:35, border:`2px solid ${T.creamBorder}`, borderRadius:9, fontSize:13, color:T.text, fontFamily:"'DM Sans',sans-serif", background:T.white }}/>
-                </div>
-              </div>
-              <div style={{ flex:1, overflowY:"auto", padding:"10px 10px" }}>
-                {filteredNotes.length===0 && <div style={{ textAlign:"center", color:T.textLight, fontSize:13, padding:"32px 16px", fontFamily:"'DM Sans',sans-serif" }}>{noteSearch?"Ingen resultater":"Ingen noter endnu.\nKlik + for at oprette."}</div>}
-                {filteredNotes.map(note => {
-                  const m=sub(note.subject), active=activeNote?.id===note.id;
-                  return (
-                    <div key={note.id} className="nr" onClick={()=>{setActiveNote(note);setShowNewNote(false);setEditingNote(null);}}
-                      style={{ padding:"12px 14px", borderRadius:12, marginBottom:5, background:active?`${T.creamDark}`:T.white, border:`2px solid ${active?T.creamBorder:"transparent"}`, borderLeft:`4px solid ${active?T.burgundy:T.creamBorder}`, boxShadow:active?`0 2px 10px ${T.shadow}`:"none" }}>
-                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
-                        <div style={{ fontWeight:600, fontSize:13.5, color:T.text, flex:1, fontFamily:"'Lora',serif" }}>{note.title}</div>
-                        <span style={{ fontSize:10, color:T.textLight, flexShrink:0, marginLeft:6, fontFamily:"'DM Sans',sans-serif" }}>{note.date}</span>
-                      </div>
-                      <div style={{ fontSize:12, color:T.textLight, marginTop:4, lineHeight:1.45, overflow:"hidden", display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", fontFamily:"'DM Sans',sans-serif" }}>
-                        {stripHtml(note.content).slice(0,100)}
-                      </div>
-                      <div style={{ marginTop:7 }}>
-                        <span style={{ fontSize:11, background:T.burgundy, color:T.gold, borderRadius:6, padding:"2px 9px", fontWeight:600, fontFamily:"'DM Sans',sans-serif" }}>{m.icon} {m.label}</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div style={{ flex:1, background:T.cream, display:"flex", flexDirection:"column", overflow:"hidden" }}>
-              {showNewNote ? (
-                <div style={{ flex:1, overflowY:"auto", padding:"44px 56px" }}>
-                  <div style={{ maxWidth:700, margin:"0 auto" }}>
-                    <h2 style={{ fontSize:27, fontWeight:700, color:T.text, marginBottom:26, fontFamily:"'Lora',serif" }}>Ny note</h2>
-                    <div style={{ display:"flex", gap:12, marginBottom:14 }}>
-                      <input value={newNote.title} onChange={e=>setNewNote({...newNote,title:e.target.value})} placeholder="Titel..."
-                        style={{ flex:1, height:48, border:`2px solid ${T.creamBorder}`, borderRadius:11, padding:"0 16px", fontSize:15, fontFamily:"'Lora',serif", color:T.text, background:T.white }}/>
-                      <select value={newNote.subject} onChange={e=>setNewNote({...newNote,subject:e.target.value})}
-                        style={{ height:48, border:`2px solid ${T.creamBorder}`, borderRadius:11, padding:"0 14px", fontSize:14, fontFamily:"'DM Sans',sans-serif", color:T.text, background:T.white }}>
-                        {SUBJECTS.map(s=><option key={s.id} value={s.id}>{s.icon} {s.label}</option>)}
-                      </select>
-                    </div>
-                    <div style={{ border:`2px solid ${T.creamBorder}`, borderRadius:11, overflow:"hidden", marginBottom:18, boxShadow:`0 2px 8px ${T.shadow}` }}>
-                      <RichToolbar editorRef={newEditorRef} T={T}/>
-                      <div ref={newEditorRef} contentEditable suppressContentEditableWarning
-                        data-placeholder="Skriv dine noter her..."
-                        style={{ minHeight:280, padding:"16px 18px", fontSize:14.5, fontFamily:"'Lora',serif", color:T.text, background:T.white, lineHeight:1.8 }}
-                      />
-                    </div>
-                    <div style={{ display:"flex", gap:10 }}>
-                      <button onClick={saveNewNote} className="btn"
-                        style={{ padding:"12px 30px", background:`linear-gradient(135deg,${T.burgundy},${T.burgundyLight})`, color:T.gold, borderRadius:11, fontSize:14, fontWeight:700, boxShadow:`0 5px 16px ${T.shadowDeep}` }}>Gem note</button>
-                      <button onClick={()=>setShowNewNote(false)} className="btn"
-                        style={{ padding:"12px 18px", background:T.white, color:T.textMid, border:`2px solid ${T.creamBorder}`, borderRadius:11, fontSize:14 }}>Annuller</button>
-                    </div>
-                  </div>
-                </div>
-              ) : activeNote ? (
-                <div style={{ flex:1, overflowY:"auto", padding:"40px 56px" }}>
-                  <div style={{ maxWidth:720, margin:"0 auto" }}>
-                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:22 }}>
-                      <div style={{ flex:1 }}>
-                        {editingNote===activeNote.id
-                          ? <input value={activeNote.title} onChange={e=>{
-                              const t = e.target.value;
-                              setActiveNote(p=>({...p, title:t}));
-                              debouncedUpdate(activeNote.id, { title: t });
-                            }}
-                              style={{ fontSize:28, fontWeight:700, color:T.text, border:"none", background:"transparent", fontFamily:"'Lora',serif", width:"100%", borderBottom:`2.5px solid ${T.creamBorder}`, paddingBottom:5 }}/>
-                          : <h1 style={{ fontSize:28, fontWeight:700, color:T.text, letterSpacing:"-0.4px", fontFamily:"'Lora',serif" }}>{activeNote.title}</h1>}
-                        <div style={{ display:"flex", alignItems:"center", gap:10, marginTop:9 }}>
-                          <span style={{ fontSize:12, background:T.burgundy, color:T.gold, borderRadius:7, padding:"3px 11px", fontWeight:600, fontFamily:"'DM Sans',sans-serif" }}>
-                            {sub(activeNote.subject).icon} {sub(activeNote.subject).label}
-                          </span>
-                          <span style={{ fontSize:11, color:T.textLight, fontFamily:"'DM Sans',sans-serif" }}>{activeNote.date}</span>
-                        </div>
-                      </div>
-                      <div style={{ display:"flex", gap:9, marginLeft:18 }}>
-                        {editingNote===activeNote.id
-                          ? <button className="btn" onClick={commitEditedNote} style={{ padding:"8px 20px", background:T.burgundy, color:T.gold, border:`2px solid ${T.burgundy}`, borderRadius:10, fontSize:13, fontWeight:700 }}>Færdig ✓</button>
-                          : <button className="btn" onClick={()=>{ setEditingNote(activeNote.id); setTimeout(()=>{ if(editorRef.current){ editorRef.current.innerHTML=activeNote.content||""; editorRef.current.focus(); } },50); }} style={{ padding:"8px 20px", background:T.white, color:T.burgundy, border:`2px solid ${T.burgundy}`, borderRadius:10, fontSize:13, fontWeight:600 }}>Rediger</button>}
-                        <button className="btn" onClick={async ()=>{ await deleteNote(activeNote.id); setActiveNote(null); }} style={{ padding:"8px 14px", background:T.white, color:"#c0392b", border:"2px solid #f5c6cb", borderRadius:10, fontSize:13, fontWeight:600 }}>Slet</button>
-                      </div>
-                    </div>
-                    <div style={{ height:2, background:`linear-gradient(90deg,${T.burgundy}80,transparent)`, marginBottom:26, borderRadius:2 }}/>
-                    {editingNote===activeNote.id ? (
-                      <div style={{ border:`2px solid ${T.creamBorder}`, borderRadius:11, overflow:"hidden", boxShadow:`0 2px 8px ${T.shadow}` }}>
-                        <RichToolbar editorRef={editorRef} T={T}/>
-                        <div ref={editorRef} contentEditable suppressContentEditableWarning
-                          onInput={handleEditorChange}
-                          style={{ minHeight:380, padding:"18px 20px", fontSize:14.5, fontFamily:"'Lora',serif", color:T.text, background:T.white, lineHeight:1.8 }}
-                        />
-                      </div>
-                    ) : (
-                      <div className="note-view-content" style={{ fontSize:15, color:T.text, lineHeight:1.85, fontFamily:"'Lora',serif" }}
-                        dangerouslySetInnerHTML={{ __html: activeNote.content }}/>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center" }}>
-                  <div style={{ width:76, height:76, borderRadius:22, background:T.creamDark, display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, marginBottom:18, border:`2.5px solid ${T.creamBorder}`, boxShadow:`0 4px 16px ${T.shadow}` }}>📝</div>
-                  <div style={{ fontWeight:600, fontSize:18, color:T.textMid, marginBottom:7, fontFamily:"'Lora',serif" }}>Vælg en note</div>
-                  <div style={{ fontSize:13, color:T.textLight, fontFamily:"'DM Sans',sans-serif" }}>eller opret en ny med + knappen</div>
-                </div>
-              )}
-            </div>
-          </div>
+        {/* ── Notes ── */}
+        {view === "notes" && (
+          <NotesView
+            notes={notes}
+            notesLoading={notesLoading}
+            notesSaving={notesSaving}
+            onSelect={setActiveNote}
+            onCreate={createNote}
+            onDelete={deleteNote}
+            onUpdate={debouncedUpdate}
+            activeNote={activeNote}
+            setActiveNote={setActiveNote}
+          />
         )}
 
-        {/* ══════════════ FAG ══════════════ */}
-        {view==="subjects" && (
-          <div style={{ flex:1, overflowY:"auto", padding:"44px 60px" }}>
-            <div style={{ maxWidth:980, margin:"0 auto" }}>
-              <div style={{ marginBottom:36 }}>
-                <h1 style={{ fontSize:32, fontWeight:700, color:T.text, letterSpacing:"-0.5px", fontFamily:"'Lora',serif" }}>Faghjælp</h1>
-                <p style={{ fontSize:15, color:T.textMid, marginTop:7, fontFamily:"'DM Sans',sans-serif" }}>Vælg et fag for at starte en fokuseret chat-session</p>
-              </div>
-              <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:16, marginBottom:44 }}>
-                {SUBJECTS.map(s => {
-                  const active = activeSubject===s.id;
-                  return (
-                    <button key={s.id} className="scard" onClick={()=>{setActiveSubject(s.id);setView("chat");}}
-                      style={{ background:active?T.burgundy:T.white, borderRadius:20, padding:"26px 22px", border:`2.5px solid ${active?T.gold:T.creamBorder}`, boxShadow:active?`0 8px 28px ${T.shadowDeep}`:`0 2px 10px ${T.shadow}` }}>
-                      <div style={{ width:56, height:56, borderRadius:17, background:active?`${T.gold}30`:T.creamDark, display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, color:active?T.gold:s.accent, fontWeight:700, marginBottom:14, border:`2.5px solid ${active?T.gold+"60":T.creamBorder}`, boxShadow:active?`0 4px 14px ${T.shadowDeep}`:"none" }}>{s.icon}</div>
-                      <div style={{ fontWeight:700, fontSize:15.5, color:active?T.gold:T.text, fontFamily:"'Lora',serif" }}>{s.label}</div>
-                      <div style={{ fontSize:12, color:active?`${T.gold}80`:T.textLight, marginTop:4, fontFamily:"'DM Sans',sans-serif" }}>Klik for at åbne →</div>
-                    </button>
-                  );
-                })}
-              </div>
-              <div style={{ background:T.white, borderRadius:22, padding:32, border:`2.5px solid ${T.creamBorder}`, boxShadow:`0 4px 18px ${T.shadow}` }}>
-                <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:7 }}>
-                  <div style={{ width:38, height:38, borderRadius:12, background:T.burgundy, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18 }}>💡</div>
-                  <h2 style={{ fontSize:19, fontWeight:700, color:T.text, fontFamily:"'Lora',serif" }}>Idé-bank</h2>
-                </div>
-                <p style={{ fontSize:13, color:T.textLight, marginBottom:22, marginLeft:50, fontFamily:"'DM Sans',sans-serif" }}>Klik for at sende direkte til chat</p>
-                <div style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:11 }}>
-                  {QUICK_STARTERS.map((q,i) => {
-                    const m=sub(q.subject);
-                    return (
-                      <button key={i} className="qb" onClick={()=>{setActiveSubject(q.subject);setView("chat");setTimeout(()=>sendMessage(q.label),80);}}
-                        style={{ padding:"14px 20px", background:T.cream, borderRadius:14, border:`2px solid ${T.creamBorder}`, color:T.text, fontSize:14, display:"flex", alignItems:"center", gap:12 }}>
-                        <span style={{ fontSize:19, flexShrink:0 }}>{m.icon}</span>
-                        <span style={{ flex:1, textAlign:"left", fontFamily:"'DM Sans',sans-serif" }}>{q.label}</span>
-                        <span style={{ color:T.burgundy, fontSize:17, opacity:0.4 }}>→</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
+        {/* ── Subjects ── */}
+        {view === "subjects" && (
+          <SubjectsView
+            activeSubject={activeSubject}
+            onSelect={(id) => { setActiveSubject(id); setView("chat"); }}
+            onQuickStart={handleQuickStart}
+          />
         )}
       </div>
 
-      {/* ─── AUTH MODAL ─── */}
+      {/* Auth Modal */}
       {showAuthModal && (
         <AuthModal
-          T={T}
+          T={{
+            burgundy: "#1a1a2e", burgundyMid: "#16213e", burgundyLight: "#0f3460",
+            gold: "#e2d9f3", goldDark: "#a78bdb", goldDeep: "#7c5cbf",
+            cream: DS.bgSurface, creamDark: DS.bgElevated, creamBorder: DS.border,
+            text: DS.text, textMid: DS.textMid, textLight: DS.textMuted,
+            white: DS.bgSurface, shadow: "rgba(0,0,0,0.4)", shadowDeep: "rgba(0,0,0,0.6)",
+          }}
           initialTab={authTab}
           onClose={() => setShowAuthModal(false)}
-          onAuthSuccess={(userData) => {
-            setShowAuthModal(false);
-            // Løft user op til parent hvis nødvendigt – her håndteres det i main.jsx
-            // For nu: vis bare et velkomst-besked
-            setMessages(prev => [
-              ...prev,
-              { role:"assistant", content:`Velkommen, **${userData.name || userData.email}**! 👋 Du er nu logget ind. Hvad vil du lære om i dag?` }
-            ]);
-          }}
+          onAuthSuccess={() => setShowAuthModal(false)}
         />
       )}
     </div>
   );
 }
-
-function IconChat()  { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>; }
-function IconNotes() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>; }
-function IconBook()  { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>; }
